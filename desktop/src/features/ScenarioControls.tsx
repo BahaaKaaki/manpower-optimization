@@ -228,10 +228,7 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
   return (
     <>
       <section className="mode-panel">
-        <SectionHeader
-          eyebrow="User Assumptions"
-          title="Optimization Mode"
-        />
+        <SectionHeader title="Optimization Mode" />
 
         <div
           className={`mode-toggle-card${isTargetMode ? " mode-toggle-card--target" : " mode-toggle-card--current"}`}
@@ -262,10 +259,7 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
       </section>
 
       <section className="controls-panel">
-        <SectionHeader
-          eyebrow="Assumptions"
-          title="Inputs"
-        />
+        <SectionHeader title="Inputs" />
 
         <div className="scenario-accordion-stack">
           <AccordionSection
@@ -311,8 +305,8 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
               <hr className="control-divider" />
               <NumberField
                 label="Risk factor"
-                hint="Outsourced workers count as (1 − risk) of an in-house worker for the minimum-headcount constraint."
-                min={0.01}
+                hint="Outsourced workers count as (1 − risk) of an in-house worker for the minimum-headcount constraint. At 0 the haircut is disabled."
+                min={0}
                 max={1}
                 value={settings.risk_factor}
                 onChange={(value) => onUpdate("risk_factor", value)}
@@ -438,8 +432,8 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
             <FieldStack>
               <NumberField
                 label="Saudi cost premium"
-                hint="Saudi in-house cost as a multiple of non-Saudi in-house cost. Default 1.10 = 10% more expensive."
-                min={0.5}
+                hint="Saudi in-house cost as a multiple of non-Saudi in-house cost. Floored at 1.0× so Saudis cannot be cheaper than non-Saudis. Default 1.10 = 10% more expensive."
+                min={1}
                 max={3}
                 step={0.05}
                 value={settings.saudi_cost_premium}

@@ -111,7 +111,7 @@ O + I = T
 O * (1 - R) + I >= M
 ```
 
-The equivalent outsource cap is `O <= (T - M) / R` when `R > 0`. The API and desktop UI require `0 < R <= 1`; zero is not allowed because the formula is undefined at zero. The Excel export includes an **Optimization Audit** sheet with the final outsourced/in-house counts, `O * (1 - R) + I`, and pass/fail checks for each constraint.
+The equivalent outsource cap is `O <= (T - M) / R` when `R > 0`. When `R == 0` the haircut is disabled — the constraint degenerates to `O + I >= M`, which the LP can satisfy as long as `T >= M`. The API and desktop UI accept `0 <= R <= 1`; the rearranged closed-form `(T - M) / R` is only consulted when `R > 0`. The Excel export includes an **Optimization Audit** sheet with the final outsourced/in-house counts, `O * (1 - R) + I`, and pass/fail checks for each constraint.
 
 ## Input Workbook
 
