@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Manpower Optimization",
+  "version": "0.1.0",
+  "identifier": "com.pwc.manpower.optimization",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://127.0.0.1:5174",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Manpower Optimization",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 1120,
+        "minHeight": 760,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "windows": {
+      "signCommand": "smctl sign --fingerprint 014cab87a4b3b30f2862bb4ea18c268a95552532 --input %1 --tool=signtool --digalg=SHA256 --timestamp --verbose"
+    },
+    "active": true,
+    "targets": "nsis",
+    "externalBin": ["binaries/manpower-api"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "shortDescription": "Manpower Optimization desktop app",
+    "longDescription": "A local desktop application for workforce optimization and payroll scenario analysis."
+  }
+}

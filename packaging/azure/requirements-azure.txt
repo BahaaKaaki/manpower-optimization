@@ -1,0 +1,14 @@
+# Staged as requirements.txt in the Azure ZIP (see build-deploy-zip.sh).
+# FastAPI + optimization stack only — omits Streamlit and Plotly (see root requirements.txt),
+# which are not imported by manpower_api or the core engine. Smaller/faster Oryx builds reduce
+# cold-start timeouts on App Service.
+pandas
+pulp
+openpyxl
+fastapi
+uvicorn
+python-multipart
+# Install this repo as a normal (non-editable) package. Editable (-e) installs record absolute paths
+# under /home/site/wwwroot; Oryx later runs the app from /tmp/... and those links break →
+# ModuleNotFoundError: manpower_api.
+.

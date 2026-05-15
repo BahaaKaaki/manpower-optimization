@@ -1,0 +1,186 @@
+from __future__ import annotations
+
+import pulp
+
+from manpower_app.rules import HQ_FIXED_INHOUSE_FAMILIES
+from manpower_app.terminology import (
+    LEGACY_OUTSOURCED_COST_BASIS_COLUMN,
+    OUTSOURCED_UNIT_COST_BASIS_COLUMN,
+)
+from manpower_app.utils import normalize_lookup_text, safe_numeric
+
+
+OUTSOURCED_COLUMN = "Optimized Outsourced"
+IN_HOUSE_NON_SAUDI_COLUMN = "Optimized In-house Non Saudi"
+IN_HOUSE_SAUDI_COLUMN = "Optimized In-house Saudi"
+
+
+def _outsourced_cost_column(data):
+    if OUTSOURCED_UNIT_COST_BASIS_COLUMN in data.columns:
+        return OUTSOURCED_UNIT_COST_BASIS_COLUMN
+    if LEGACY_OUTSOURCED_COST_BASIS_COLUMN in data.columns:
+        return LEGACY_OUTSOURCED_COST_BASIS_COLUMN
+    return "Avg Cost Outsourced"
+
+
+def _risk_factor(row):
+    risk_factor = safe_numeric(row.get("Risk Factor", 0.25))
+    return max(0.0, min(1.0, risk_factor))
+
+
+def _max_outsourced_allowed(row):
+    total_headcount = int(safe_numeric(row.get("Current Headcount")))
+    outsourceability_type = row.get("Outsourceability Type")
+    job_family = row.get("Job Family")
+
+    max_outsourced = total_headcount
+    if outsourceability_type in {"Not Outsourceable", "Fully In-House", "Fully Inhouse"}:
+        max_outsourced = 0
+    elif outsourceability_type == "Partially Outsourceable":
+        if job_family in HQ_FIXED_INHOUSE_FAMILIES:
+            hq_inhouse_count = int(safe_numeric(row.get("HQ Inhouse Count")))
+            max_outsourced = max(0, total_headcount - hq_inhouse_count)
+        else:
+            max_outsourced = min(total_headcount, int(safe_numeric(row.get("Outsourced v1"))))
+
+    return min(total_headcount, max(0, max_outsourced))
+
+
+def _minimum_inhouse_required(row):
+    total_headcount = int(safe_numeric(row.get("Current Headcount")))
+    minimum_inhouse = int(safe_numeric(row.get("Minimum Headcount Needed")))
+    return min(total_headcount, max(0, minimum_inhouse))
+
+
+def _saudi_lower_bound(row, *, can_reduce_current_saudi, tenure_constraint_active):
+    current_saudi = int(safe_numeric(row.get("Current Total In-house Saudi")))
+    tenured_saudi = (
+        int(safe_numeric(row.get("Tenured Saudi In-House"))) if tenure_constraint_active else 0
+    )
+    floor_from_current = 0 if can_reduce_current_saudi else current_saudi
+    return max(floor_from_current, tenured_saudi)
+
+
+def _non_saudi_lower_bound(row, *, tenure_constraint_active):
+    if not tenure_constraint_active:
+        return 0
+    return int(safe_numeric(row.get("Tenured Non-Saudi In-House")))
+
+
+def _clamp_results_to_valid_ranges(data):
+    """Defensive sanity clamp on solver output: keep counts non-negative and respect headcount."""
+    data = data.copy()
+
+    def enforce(row):
+        total_headcount = int(safe_numeric(row.get("Current Headcount")))
+        saudi = min(total_headcount, max(0, int(safe_numeric(row.get(IN_HOUSE_SAUDI_COLUMN)))))
+        max_outsourced = min(_max_outsourced_allowed(row), max(0, total_headcount - saudi))
+        outsourced = min(max_outsourced, max(0, int(safe_numeric(row.get(OUTSOURCED_COLUMN)))))
+        non_saudi = max(0, total_headcount - saudi - outsourced)
+        return outsourced, non_saudi, saudi
+
+    adjusted = data.apply(enforce, axis=1, result_type="expand")
+    data[[OUTSOURCED_COLUMN, IN_HOUSE_NON_SAUDI_COLUMN, IN_HOUSE_SAUDI_COLUMN]] = adjusted
+    return data
+
+
+def _calculate_total_payroll(data, outsourced_cost_column):
+    return safe_numeric(
+        (
+            data["Fully Loaded Cost per In-house Saudi Employee"] * data[IN_HOUSE_SAUDI_COLUMN]
+            + data["Fully Loaded Cost per In-house Non-Saudi Employee"] * data[IN_HOUSE_NON_SAUDI_COLUMN]
+            + data[outsourced_cost_column] * data[OUTSOURCED_COLUMN]
+        ).sum()
+    )
+
+
+def solve_optimization(
+    data,
+    *,
+    enforce_saudization,
+    saudization_rate,
+    can_reduce_current_saudi,
+    tenure_constraint_active,
+    profession_saudization_rates,
+):
+    """Solve the manpower optimization LP and write final headcount columns onto ``data``.
+
+    For each job-family row decide three integer counts that minimize total
+    payroll cost subject to:
+
+    * ``Outsourced + NonSaudi + Saudi == Current Headcount`` (per row)
+    * ``Outsourced * (1 - risk) + NonSaudi + Saudi >= Minimum Headcount Needed`` (per row)
+    * ``Outsourced <= max_outsourced_allowed`` (driven by Outsourceability Type / Outsourced v1 cap)
+    * ``Saudi >= current_saudi`` when ``can_reduce_current_saudi`` is False
+    * ``Saudi >= tenured_saudi``, ``NonSaudi >= tenured_non_saudi`` when ``tenure_constraint_active`` is True
+    * ``sum(Saudi) >= rate * sum(Saudi + NonSaudi)`` when ``enforce_saudization`` is True
+    * ``Saudi_i >= profession_rate * (Saudi_i + NonSaudi_i)`` for each job family that has a
+      profession rate set in ``profession_saudization_rates``
+
+    Returns ``(data, total_payroll, status)``. On a non-Optimal solver status the function
+    falls back to the current state (Current Outsourced / In-House Non-Saudi / Total Saudi).
+    """
+    data = data.copy()
+    outsourced_cost_column = _outsourced_cost_column(data)
+
+    prob = pulp.LpProblem("Manpower_Optimization", pulp.LpMinimize)
+    outsourced_vars: list[pulp.LpVariable] = []
+    non_saudi_vars: list[pulp.LpVariable] = []
+    saudi_vars: list[pulp.LpVariable] = []
+
+    for i, row in data.iterrows():
+        total_headcount = int(safe_numeric(row["Current Headcount"]))
+        max_outsourced = _max_outsourced_allowed(row)
+        saudi_lb = _saudi_lower_bound(
+            row,
+            can_reduce_current_saudi=can_reduce_current_saudi,
+            tenure_constraint_active=tenure_constraint_active,
+        )
+        non_saudi_lb = _non_saudi_lower_bound(row, tenure_constraint_active=tenure_constraint_active)
+
+        outsourced = pulp.LpVariable(f"Outsourced_{i}", lowBound=0, upBound=max_outsourced, cat="Integer")
+        non_saudi = pulp.LpVariable(f"NonSaudi_{i}", lowBound=non_saudi_lb, cat="Integer")
+        saudi = pulp.LpVariable(f"Saudi_{i}", lowBound=saudi_lb, cat="Integer")
+
+        outsourced_vars.append(outsourced)
+        non_saudi_vars.append(non_saudi)
+        saudi_vars.append(saudi)
+
+        prob += outsourced + non_saudi + saudi == total_headcount, f"Total_Headcount_{i}"
+
+        minimum_inhouse = _minimum_inhouse_required(row)
+        risk = _risk_factor(row)
+        prob += outsourced * (1 - risk) + non_saudi + saudi >= minimum_inhouse, f"Risk_Adjusted_Minimum_{i}"
+
+        profession_rate = profession_saudization_rates.get(
+            normalize_lookup_text(row.get("Job Family"))
+        )
+        if profession_rate is not None:
+            prob += saudi >= safe_numeric(profession_rate) * (saudi + non_saudi), f"Profession_Saudization_{i}"
+
+    prob += pulp.lpSum(
+        data.iloc[i][outsourced_cost_column] * outsourced_vars[i]
+        + data.iloc[i]["Fully Loaded Cost per In-house Non-Saudi Employee"] * non_saudi_vars[i]
+        + data.iloc[i]["Fully Loaded Cost per In-house Saudi Employee"] * saudi_vars[i]
+        for i in range(len(data))
+    )
+
+    if enforce_saudization:
+        prob += pulp.lpSum(saudi_vars) >= safe_numeric(saudization_rate) * pulp.lpSum(
+            saudi_vars[i] + non_saudi_vars[i] for i in range(len(data))
+        ), "Global_Saudization_Rate"
+
+    prob.solve(pulp.PULP_CBC_CMD(msg=0))
+    status = pulp.LpStatus[prob.status]
+
+    if status == "Optimal":
+        data[OUTSOURCED_COLUMN] = [int(var.varValue) for var in outsourced_vars]
+        data[IN_HOUSE_NON_SAUDI_COLUMN] = [int(var.varValue) for var in non_saudi_vars]
+        data[IN_HOUSE_SAUDI_COLUMN] = [int(var.varValue) for var in saudi_vars]
+    else:
+        data[OUTSOURCED_COLUMN] = data["Current Outsourced Count"].apply(lambda x: int(safe_numeric(x)))
+        data[IN_HOUSE_NON_SAUDI_COLUMN] = data["Current In-House Non-Saudi Count"].apply(lambda x: int(safe_numeric(x)))
+        data[IN_HOUSE_SAUDI_COLUMN] = data["Current Total In-house Saudi"].apply(lambda x: int(safe_numeric(x)))
+
+    data = _clamp_results_to_valid_ranges(data)
+    return data, _calculate_total_payroll(data, outsourced_cost_column), status
