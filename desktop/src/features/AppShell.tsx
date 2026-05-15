@@ -42,6 +42,31 @@ function DownloadIcon() {
   );
 }
 
+function ChevronLeftIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+const STAGE_ORDER: AppStage[] = ["home", "upload", "mappings", "ready", "results"];
+const STAGE_LABELS: Record<AppStage, string> = {
+  home: "Home Page",
+  upload: "Data Upload",
+  mappings: "Additional Inputs",
+  ready: "User Assumptions",
+  results: "Output",
+};
+
 const stageTitles: Record<AppStage, { eyebrow: string }> = {
   home: { eyebrow: "Home Page" },
   upload: { eyebrow: "Data Upload" },
@@ -189,10 +214,64 @@ export function AppShell({
         <div className="content-body">
           <div className="content-body-inner" key={stage}>
             {children}
+            <StageNav
+              stage={stage}
+              reachableStages={reachableStages}
+              onNavigate={onNavigate}
+            />
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+function StageNav({
+  stage,
+  reachableStages,
+  onNavigate,
+}: {
+  stage: AppStage;
+  reachableStages: Set<AppStage>;
+  onNavigate?: (stage: AppStage) => void;
+}) {
+  const currentIndex = STAGE_ORDER.indexOf(stage);
+  const prevStage = currentIndex > 0 ? STAGE_ORDER[currentIndex - 1] : null;
+  const nextStage = currentIndex < STAGE_ORDER.length - 1 ? STAGE_ORDER[currentIndex + 1] : null;
+  const canGoPrev = !!prevStage && !!onNavigate && reachableStages.has(prevStage);
+  const canGoNext = !!nextStage && !!onNavigate && reachableStages.has(nextStage);
+
+  if (!canGoPrev && !canGoNext) return null;
+
+  return (
+    <nav className="stage-nav" aria-label="Workflow navigation">
+      <button
+        type="button"
+        className="stage-nav-btn stage-nav-btn--prev"
+        disabled={!canGoPrev}
+        onClick={canGoPrev && onNavigate ? () => onNavigate(prevStage!) : undefined}
+        aria-label={prevStage ? `Go back to ${STAGE_LABELS[prevStage]}` : "No previous step"}
+      >
+        <ChevronLeftIcon />
+        <span className="stage-nav-text">
+          <span className="stage-nav-eyebrow">Previous</span>
+          <span className="stage-nav-label">{prevStage ? STAGE_LABELS[prevStage] : "—"}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        className="stage-nav-btn stage-nav-btn--next"
+        disabled={!canGoNext}
+        onClick={canGoNext && onNavigate ? () => onNavigate(nextStage!) : undefined}
+        aria-label={nextStage ? `Go forward to ${STAGE_LABELS[nextStage]}` : "No next step"}
+      >
+        <span className="stage-nav-text">
+          <span className="stage-nav-eyebrow">Next</span>
+          <span className="stage-nav-label">{nextStage ? STAGE_LABELS[nextStage] : "—"}</span>
+        </span>
+        <ChevronRightIcon />
+      </button>
+    </nav>
   );
 }
 

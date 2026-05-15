@@ -338,6 +338,79 @@ button, input, select {
   scroll-behavior: smooth;
 }
 
+.stage-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-light);
+}
+
+.stage-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  min-width: 180px;
+  font-family: inherit;
+}
+
+.stage-nav-btn:hover:not(:disabled) {
+  background: var(--bg-surface-elevated, #fafafa);
+  border-color: var(--accent-500);
+}
+
+.stage-nav-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.stage-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stage-nav-btn--prev {
+  text-align: left;
+}
+
+.stage-nav-btn--next {
+  margin-left: auto;
+  text-align: right;
+}
+
+.stage-nav-btn--next .stage-nav-text {
+  align-items: flex-end;
+}
+
+.stage-nav-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 0;
+}
+
+.stage-nav-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stage-nav-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
 .content-body-inner {
   animation: contentFadeIn 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
   display: flex;
