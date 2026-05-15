@@ -1,11 +1,11 @@
-// Tier 5 — "Job Families" step.
+// Tier 5 — "Additional Inputs" / Job Families step.
 //
-// Two responsibilities:
+// Responsibilities:
 //   (1) Resolve unmapped (activity, profession) pairs the workbook surfaced. Until every
 //       pair has a resolution, downstream stages stay disabled.
-//   (2) Let the user define brand-new job families (no payroll rows in the workbook), so
-//       the Target-mode flow can put a target headcount on a family that doesn't exist
-//       yet — these need explicit unit costs because the LP can't infer them.
+//   (2) Edit existing custom job families that have no payroll rows in the workbook
+//       (Target-mode flow). Creating a new custom job family from scratch is currently
+//       disabled here — see the deferred "+ Add Job Family" affordance below.
 //
 // State lives in a parent (App.tsx). On save we call `onApply(updatedFamilies)` which
 // re-processes the workbook against the merged mappings server-side.
@@ -49,9 +49,10 @@ type Props = {
 type Mode = "view" | "wizard";
 
 type WizardSeed = {
-  // Pairs the user has selected to bind to this family. Empty for a brand-new family.
+  // Pairs the user has selected to bind to this job family. Empty for a custom job
+  // family with no payroll rows.
   pairs: ActivityProfession[];
-  // If we are editing an existing custom family, the index in `customFamilies`.
+  // If we are editing an existing custom job family, the index in `customFamilies`.
   editingIndex?: number;
 };
 
@@ -86,11 +87,6 @@ export function MappingResolveWorkspace({
     const pairs = unmappedPairs.filter((p) => selectedPairs.has(pairKey(p))).map(({ activity, profession }) => ({ activity, profession }));
     if (pairs.length === 0) return;
     setSeed({ pairs });
-    setMode("wizard");
-  }
-
-  function startNewBrandFamily() {
-    setSeed({ pairs: [] });
     setMode("wizard");
   }
 
@@ -149,7 +145,7 @@ export function MappingResolveWorkspace({
         <div className="card mapping-card">
           <div className="mapping-card-head">
             <strong>Unmapped pairs from {uploadInfo.filename ?? "the workbook"}</strong>
-            <span className="mapping-card-hint">Tick the pairs that should map to the same family, then "Define family from selected".</span>
+            <span className="mapping-card-hint">Tick the pairs that should map to the same job family, then "Define job family from selected".</span>
           </div>
           <table className="mapping-table">
             <thead>
@@ -186,21 +182,18 @@ export function MappingResolveWorkspace({
               disabled={busy || selectedPairs.size === 0}
               onClick={startWizardFromSelection}
             >
-              Define family from selected ({selectedPairs.size})
+              Define job family from selected ({selectedPairs.size})
             </button>
           </div>
         </div>
       ) : null}
 
-      {mode === "view" ? (
+      {mode === "view" && customFamilies.length > 0 ? (
         <div className="card mapping-card">
           <div className="mapping-card-head">
-            <strong>Custom families</strong>
+            <strong>Custom job families</strong>
           </div>
-          {customFamilies.length === 0 ? (
-            <p className="mapping-empty">No custom families yet.</p>
-          ) : (
-            <ul className="custom-family-list">
+          <ul className="custom-family-list">
               {customFamilies.map((spec, idx) => (
                 <li key={idx} className="custom-family-row">
                   <div className="custom-family-row-head">
@@ -209,7 +202,7 @@ export function MappingResolveWorkspace({
                   </div>
                   <p className="custom-family-row-pairs">
                     {spec.source_pairs.length === 0
-                      ? <em>Brand-new family (no payroll rows)</em>
+                      ? <em>Custom job family (no payroll rows)</em>
                       : spec.source_pairs.map((p) => `${p.activity} – ${p.profession}`).join(" • ")}
                   </p>
                   {spec.partial_config ? (
@@ -230,17 +223,14 @@ export function MappingResolveWorkspace({
                 </li>
               ))}
             </ul>
-          )}
-          <div className="mapping-card-actions">
-            <button className="btn btn-secondary" disabled={busy} onClick={startNewBrandFamily}>
-              + Add brand-new family
-            </button>
-            {unmappedPairs.length === 0 ? (
-              <button className="btn btn-primary" disabled={busy} onClick={onContinue}>
-                Continue to User Assumptions
-              </button>
-            ) : null}
-          </div>
+        </div>
+      ) : null}
+
+      {mode === "view" && unmappedPairs.length === 0 ? (
+        <div className="mapping-continue">
+          <button className="btn btn-primary" disabled={busy} onClick={onContinue}>
+            Continue to User Assumptions
+          </button>
         </div>
       ) : null}
     </section>
@@ -343,7 +333,7 @@ function DefineFamilyWizard({
       // One family per pair, suffixed by activity + profession.
       return seed.pairs.map((p) => baseSpec(`${prefix} (${p.activity} – ${p.profession})`, [p]));
     }
-    return [baseSpec(familyName.trim() || (isBrandNew ? "New Family" : `Custom (${seed.pairs.length} pairs)`), seed.pairs)];
+    return [baseSpec(familyName.trim() || (isBrandNew ? "New Job Family" : `Custom (${seed.pairs.length} pairs)`), seed.pairs)];
   }
 
   const canSave =
@@ -358,7 +348,7 @@ function DefineFamilyWizard({
   return (
     <div className="card mapping-card wizard-card">
       <div className="mapping-card-head">
-        <strong>{editing ? "Edit family" : isBrandNew ? "Add a brand-new family" : `Define family from ${seed.pairs.length} pair${seed.pairs.length === 1 ? "" : "s"}`}</strong>
+        <strong>{editing ? "Edit job family" : isBrandNew ? "Add a job family" : `Define job family from ${seed.pairs.length} pair${seed.pairs.length === 1 ? "" : "s"}`}</strong>
       </div>
 
       {seed.pairs.length > 0 ? (
@@ -374,17 +364,17 @@ function DefineFamilyWizard({
           <legend>Is this the same role across activities?</legend>
           <label className="wizard-radio">
             <input type="radio" checked={groupingMode === "single"} onChange={() => setGroupingMode("single")} />
-            Yes — fold all selected pairs into one family
+            Yes — fold all selected pairs into one job family
           </label>
           <label className="wizard-radio">
             <input type="radio" checked={groupingMode === "split"} onChange={() => setGroupingMode("split")} />
-            No — create a separate family for each pair (the family name becomes a prefix)
+            No — create a separate job family for each pair (the name becomes a prefix)
           </label>
         </fieldset>
       ) : null}
 
       <fieldset className="wizard-field">
-        <legend>{groupingMode === "split" ? "Family name prefix" : "Family name"}</legend>
+        <legend>{groupingMode === "split" ? "Name of job family (prefix)" : "Name of job family"}</legend>
         <input
           type="text"
           className="wizard-text-input"
@@ -480,9 +470,9 @@ function DefineFamilyWizard({
 
       {isBrandNew ? (
         <fieldset className="wizard-field">
-          <legend>Unit costs (required for brand-new families)</legend>
+          <legend>Unit costs (required for custom job families)</legend>
           <p className="wizard-radio-copy">
-            The family has no payroll rows in the workbook, so the optimizer needs explicit per-employee costs.
+            The job family has no payroll rows in the workbook, so the optimizer needs explicit per-employee costs.
           </p>
           <label className="wizard-inline-input">
             <span>Saudi in-house unit cost</span>

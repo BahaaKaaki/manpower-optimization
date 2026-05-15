@@ -1327,6 +1327,11 @@ button, input, select {
   grid-template-columns: repeat(3, 1fr);
 }
 
+.mapping-continue {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .inspector-list {
   display: flex;
   flex-direction: column;
