@@ -91,24 +91,87 @@ function NumberField({
         />
       ) : (
         <div className="number-input-wrap">
-          <input
-            type="number"
+          <NumericTextInput
             className="number-input"
             min={min}
             max={max}
             step={step}
             value={value}
             disabled={disabled}
-            onFocus={(e) => e.currentTarget.select()}
-            onChange={(e) => {
-              const raw = e.target.value;
-              onChange(raw === "" ? 0 : Number(raw));
-            }}
+            onChange={onChange}
           />
           {suffix ? <span className="number-input-suffix">{suffix}</span> : null}
         </div>
       )}
     </div>
+  );
+}
+
+// Numeric text input that drops the leading "0" cleanly on first keystroke.
+// Backed by an internal text buffer so the user can wipe and retype without
+// the parsed numeric value bleeding back into the display.
+function NumericTextInput({
+  value,
+  onChange,
+  min,
+  max,
+  step,
+  disabled,
+  className,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const [text, setText] = useState<string>(() => String(value));
+  const [focused, setFocused] = useState(false);
+
+  // Keep the buffer in sync with the parent's numeric value when the user is
+  // not actively typing. While focused the user owns the buffer.
+  if (!focused && Number(text) !== value) {
+    setText(String(value));
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className={className}
+      disabled={disabled}
+      value={text}
+      onFocus={(e) => {
+        setFocused(true);
+        e.currentTarget.select();
+      }}
+      onBlur={() => {
+        setFocused(false);
+        if (text === "" || text === "-" || Number.isNaN(Number(text))) {
+          setText(String(value));
+        }
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        // Allow empty + intermediate states (e.g. "-", "1.") while typing.
+        if (raw === "" || raw === "-" || raw === ".") {
+          setText(raw);
+          onChange(0);
+          return;
+        }
+        // Reject anything that isn't a finite number; keep prior buffer.
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed)) return;
+        let next = parsed;
+        if (min !== undefined && next < min) next = min;
+        if (max !== undefined && next > max) next = max;
+        if (step !== undefined && step >= 1) next = Math.round(next);
+        setText(raw);
+        onChange(next);
+      }}
+    />
   );
 }
 
@@ -396,19 +459,12 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                           <td>{family}</td>
                           <td>{currentHc !== undefined ? currentHc : <em>new</em>}</td>
                           <td>
-                            <input
-                              type="number"
+                            <NumericTextInput
                               min={0}
                               step={1}
                               className="number-input target-headcount-input"
-                              value={targetHc !== undefined ? targetHc : ""}
-                              placeholder={placeholder}
-                              onFocus={(e) => e.currentTarget.select()}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                if (v === "") setTargetHeadcount(family, null);
-                                else setTargetHeadcount(family, Number(v));
-                              }}
+                              value={targetHc ?? 0}
+                              onChange={(v) => setTargetHeadcount(family, v === 0 && targetHc === undefined ? null : v)}
                             />
                           </td>
                         </tr>
@@ -495,17 +551,13 @@ function RatioOverrideEditor({
               <span className="ratio-override-family">{family}</span>
               <span className="ratio-override-control">
                 <span className="ratio-override-prefix">1 :</span>
-                <input
-                  type="number"
+                <NumericTextInput
                   min={1}
                   step={1}
                   className="number-input ratio-override-input"
-                  value={denom || ""}
-                  placeholder={parseRatioDenominator(defaultRatio).toString()}
-                  onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) => {
+                  value={denom || parseRatioDenominator(defaultRatio) || 0}
+                  onChange={(value) => {
                     const next = { ...overrides };
-                    const value = Number(event.target.value);
                     if (!Number.isFinite(value) || value <= 0) {
                       delete next[family];
                     } else {
