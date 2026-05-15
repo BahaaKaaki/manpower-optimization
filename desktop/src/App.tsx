@@ -409,6 +409,7 @@ export default function App() {
           unmappedPairs={unmappedPairs}
           workbookPairs={workbookPairs}
           customFamilies={settings.custom_families}
+          isTargetMode={settings.optimization_mode === "target"}
           busy={busyAction === "mappings"}
           onApply={(families) => void applyMappingResolutions(families)}
           onContinue={() => setActiveStage("ready")}

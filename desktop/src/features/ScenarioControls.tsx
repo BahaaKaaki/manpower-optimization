@@ -110,30 +110,41 @@ function NumberField({
 // Numeric text input that drops the leading "0" cleanly on first keystroke.
 // Backed by an internal text buffer so the user can wipe and retype without
 // the parsed numeric value bleeding back into the display.
+//
+// When ``value`` is ``undefined`` the input renders empty with the optional
+// placeholder; ``onClear`` (if provided) fires when the user blurs an empty
+// buffer, letting the caller distinguish "unset" from "zero".
 function NumericTextInput({
   value,
   onChange,
+  onClear,
+  placeholder,
   min,
   max,
   step,
   disabled,
   className,
 }: {
-  value: number;
+  value: number | undefined;
   onChange: (value: number) => void;
+  onClear?: () => void;
+  placeholder?: string;
   min?: number;
   max?: number;
   step?: number;
   disabled?: boolean;
   className?: string;
 }) {
-  const [text, setText] = useState<string>(() => String(value));
+  const [text, setText] = useState<string>(() => (value === undefined ? "" : String(value)));
   const [focused, setFocused] = useState(false);
 
-  // Keep the buffer in sync with the parent's numeric value when the user is
-  // not actively typing. While focused the user owns the buffer.
-  if (!focused && Number(text) !== value) {
-    setText(String(value));
+  // While unfocused, re-sync the buffer from the parent so external state
+  // changes are reflected. While focused the user owns the buffer.
+  if (!focused) {
+    const expected = value === undefined ? "" : String(value);
+    if (text !== expected && Number(text) !== value) {
+      setText(expected);
+    }
   }
 
   return (
@@ -143,25 +154,34 @@ function NumericTextInput({
       className={className}
       disabled={disabled}
       value={text}
+      placeholder={placeholder}
       onFocus={(e) => {
         setFocused(true);
         e.currentTarget.select();
       }}
       onBlur={() => {
         setFocused(false);
-        if (text === "" || text === "-" || Number.isNaN(Number(text))) {
-          setText(String(value));
+        if (text === "") {
+          if (onClear) onClear();
+          return;
+        }
+        if (text === "-" || Number.isNaN(Number(text))) {
+          setText(value === undefined ? "" : String(value));
         }
       }}
       onChange={(e) => {
         const raw = e.target.value;
-        // Allow empty + intermediate states (e.g. "-", "1.") while typing.
-        if (raw === "" || raw === "-" || raw === ".") {
-          setText(raw);
-          onChange(0);
+        if (raw === "") {
+          setText("");
+          if (onClear) onClear();
+          else onChange(0);
           return;
         }
-        // Reject anything that isn't a finite number; keep prior buffer.
+        // Allow intermediate states (e.g. "-", "1.") while typing.
+        if (raw === "-" || raw === ".") {
+          setText(raw);
+          return;
+        }
         const parsed = Number(raw);
         if (!Number.isFinite(parsed)) return;
         let next = parsed;
@@ -463,8 +483,10 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                               min={0}
                               step={1}
                               className="number-input target-headcount-input"
-                              value={targetHc ?? 0}
-                              onChange={(v) => setTargetHeadcount(family, v === 0 && targetHc === undefined ? null : v)}
+                              value={targetHc}
+                              placeholder={placeholder}
+                              onChange={(v) => setTargetHeadcount(family, v)}
+                              onClear={() => setTargetHeadcount(family, null)}
                             />
                           </td>
                         </tr>

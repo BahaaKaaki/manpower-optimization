@@ -41,6 +41,11 @@ type Props = {
   unmappedPairs: UnmappedPair[];
   workbookPairs: ActivityProfession[];
   customFamilies: CustomFamilySpec[];
+  // Whether the user has chosen "Input and Optimize a Target Manpower Plan".
+  // The "+ Add Job Family" affordance only appears in target mode because a job
+  // family with no payroll rows only makes sense when planning toward a future
+  // target headcount.
+  isTargetMode: boolean;
   busy: boolean;
   onApply: (updated: CustomFamilySpec[]) => void;
   onContinue: () => void;
@@ -61,6 +66,7 @@ export function MappingResolveWorkspace({
   unmappedPairs,
   workbookPairs,
   customFamilies,
+  isTargetMode,
   busy,
   onApply,
   onContinue,
@@ -87,6 +93,11 @@ export function MappingResolveWorkspace({
     const pairs = unmappedPairs.filter((p) => selectedPairs.has(pairKey(p))).map(({ activity, profession }) => ({ activity, profession }));
     if (pairs.length === 0) return;
     setSeed({ pairs });
+    setMode("wizard");
+  }
+
+  function startNewJobFamily() {
+    setSeed({ pairs: [] });
     setMode("wizard");
   }
 
@@ -223,6 +234,24 @@ export function MappingResolveWorkspace({
                 </li>
               ))}
             </ul>
+        </div>
+      ) : null}
+
+      {mode === "view" && isTargetMode ? (
+        <div className="card mapping-card mapping-add-job-family">
+          <div className="mapping-card-head">
+            <strong>Add a job family for target planning</strong>
+            <span className="mapping-card-hint">
+              Useful when your Target Manpower Plan needs a job family that does not exist in
+              the uploaded workbook yet. Define its costs and outsourceability here, then enter
+              its target headcount on the User Assumptions step.
+            </span>
+          </div>
+          <div className="mapping-card-actions">
+            <button className="btn btn-secondary" disabled={busy} onClick={startNewJobFamily}>
+              + Add Job Family
+            </button>
+          </div>
         </div>
       ) : null}
 

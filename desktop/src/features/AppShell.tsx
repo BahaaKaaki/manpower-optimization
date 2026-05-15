@@ -100,9 +100,9 @@ export function AppShell({
     <div className="layout-root">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <img src={logoUrl} alt="CPC" className="sidebar-logo" />
           <div className="sidebar-brand-text">
-            <span className="sidebar-brand-name">Manpower Optimization Tool</span>
+            <span className="sidebar-brand-name">Manpower</span>
+            <span className="sidebar-brand-sub">Optimization Tool</span>
           </div>
         </div>
 
@@ -149,6 +149,7 @@ export function AppShell({
         </nav>
 
         <div className="sidebar-footer">
+          <img src={logoUrl} alt="CPC" className="sidebar-footer-logo" />
           <div className="engine-status">
             <span className={`engine-dot ${apiReady ? "ready" : ""}`} />
             <div className="engine-status-text">
