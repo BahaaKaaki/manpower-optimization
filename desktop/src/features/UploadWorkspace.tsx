@@ -190,6 +190,17 @@ export function UploadWorkspace({
           <MetricCard label="Outsourced" value={formatNumber(uploadInfo.subcontractor_count, 0)} />
           <MetricCard label="Job families" value={formatNumber(uploadInfo.job_family_count, 0)} />
         </div>
+
+        <div className="data-health-actions">
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            disabled={!apiReady || busyAction === "upload"}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {busyAction === "upload" ? <><span className="spinner" /> Processing...</> : "Replace workbook"}
+          </button>
+        </div>
       </div>
 
       {debugEnabled ? (

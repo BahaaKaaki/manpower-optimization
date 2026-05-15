@@ -374,11 +374,8 @@ export default function App() {
       stageBadges={stageBadges}
       apiReady={apiReady}
       status={status}
-      busyAction={busyAction}
       canRun={Boolean(uploadInfo)}
       canResumeResults={Boolean(restoredOptimization) && !optimization}
-      onUploadClick={() => fileInputRef.current?.click()}
-      onRunOptimization={() => void runOptimization()}
       onResumeResults={restorePreviousScenario}
       onDownload={optimization ? () => void downloadResults() : undefined}
       onNavigate={handleNavigate}

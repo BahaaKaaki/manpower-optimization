@@ -1,4 +1,4 @@
-import type { AppStage, BusyAction } from "../types";
+import type { AppStage } from "../types";
 
 const logoUrl = "/cpc-logo.png";
 
@@ -9,14 +9,6 @@ const workflowSteps: { id: AppStage; label: string }[] = [
   { id: "ready", label: "User Assumptions" },
   { id: "results", label: "Output" },
 ];
-
-function UploadIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-      <path d="M7.5 1.5V10M7.5 1.5L4.5 4.5M7.5 1.5L10.5 4.5M2 12.5H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
 
 function PlayIcon() {
   return (
@@ -88,11 +80,8 @@ type AppShellProps = {
   stageBadges?: Partial<Record<AppStage, StageBadge | undefined>>;
   apiReady: boolean;
   status: string;
-  busyAction: BusyAction;
   canRun: boolean;
   canResumeResults: boolean;
-  onUploadClick: () => void;
-  onRunOptimization: () => void;
   onResumeResults: () => void;
   onDownload?: () => void;
   onNavigate?: (stage: AppStage) => void;
@@ -105,11 +94,8 @@ export function AppShell({
   stageBadges,
   apiReady,
   status,
-  busyAction,
   canRun,
   canResumeResults,
-  onUploadClick,
-  onRunOptimization,
   onResumeResults,
   onDownload,
   onNavigate,
@@ -182,14 +168,6 @@ export function AppShell({
               <span className="engine-status-value">{status}</span>
             </div>
           </div>
-          <button
-            className="sidebar-action upload"
-            disabled={!apiReady || busyAction === "upload"}
-            onClick={onUploadClick}
-          >
-            <UploadIcon />
-            <span>{canRun ? "Upload new" : "Upload"}</span>
-          </button>
           {!canRun && canResumeResults && (
             <button className="sidebar-action upload" onClick={onResumeResults}>
               <span>Resume last results</span>
