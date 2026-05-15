@@ -151,7 +151,7 @@ export function UploadWorkspace({
                 {busyAction === "upload" ? "Processing workbook..." : "Drop workbook here or click to browse"}
               </span>
               <span className="upload-zone-subtitle">
-                Upload In-house and Outsourced Employees Payroll in one XLS File
+                Upload In-house and Outsourced Employees Payroll in one Excel workbook
               </span>
               <button
                 className="btn btn-primary"
