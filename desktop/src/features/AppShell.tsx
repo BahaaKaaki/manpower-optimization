@@ -42,12 +42,12 @@ function DownloadIcon() {
   );
 }
 
-const stageTitles: Record<AppStage, { eyebrow: string; title: string }> = {
-  home: { eyebrow: "Home Page", title: "Manpower Optimization Tool" },
-  upload: { eyebrow: "Data Upload", title: "Upload Workbook" },
-  mappings: { eyebrow: "Additional Inputs", title: "Job Families" },
-  ready: { eyebrow: "User Assumptions", title: "Optimization Mode" },
-  results: { eyebrow: "Output", title: "Output Summary" },
+const stageTitles: Record<AppStage, { eyebrow: string }> = {
+  home: { eyebrow: "Home Page" },
+  upload: { eyebrow: "Data Upload" },
+  mappings: { eyebrow: "Additional Inputs" },
+  ready: { eyebrow: "User Assumptions" },
+  results: { eyebrow: "Output" },
 };
 
 export type StageBadgeTone = "neutral" | "positive" | "warning" | "danger" | "info";
@@ -90,7 +90,7 @@ export function AppShell({
   onNavigate,
   children,
 }: AppShellProps) {
-  const { eyebrow, title } = stageTitles[stage];
+  const { eyebrow } = stageTitles[stage];
 
   if (stage === "home") {
     return <div className="layout-root layout-root--home">{children}</div>;
@@ -100,10 +100,9 @@ export function AppShell({
     <div className="layout-root">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <img src={logoUrl} alt="Workforce Studio" className="sidebar-logo" />
+          <img src={logoUrl} alt="CPC" className="sidebar-logo" />
           <div className="sidebar-brand-text">
-            <span className="sidebar-brand-label">Workforce Studio</span>
-            <span className="sidebar-brand-name">Manpower Optimizer</span>
+            <span className="sidebar-brand-name">Manpower Optimization Tool</span>
           </div>
         </div>
 
@@ -163,7 +162,7 @@ export function AppShell({
             onClick={onUploadClick}
           >
             <UploadIcon />
-            <span>{canRun ? "Upload new workbook" : "Upload workbook"}</span>
+            <span>{canRun ? "Upload new" : "Upload"}</span>
           </button>
           {!canRun && canResumeResults && (
             <button className="sidebar-action upload" onClick={onResumeResults}>
@@ -176,8 +175,7 @@ export function AppShell({
       <main className="content-root">
         <div className="content-topbar">
           <div className="topbar-title-group">
-            <span className="topbar-eyebrow">{eyebrow}</span>
-            <h1 className="topbar-title">{title}</h1>
+            <h1 className="topbar-eyebrow">{eyebrow}</h1>
           </div>
           <div className="topbar-actions">
             {stage === "results" && onDownload && (
