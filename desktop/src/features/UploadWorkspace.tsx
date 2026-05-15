@@ -176,17 +176,19 @@ export function UploadWorkspace({
     <section className={`baseline-grid${debugEnabled ? "" : " baseline-grid--single"}`}>
       <div className="card">
         <SectionHeader
-          eyebrow="Workbook loaded"
-          title="Workbook Loaded"
+          eyebrow="Data Loaded"
+          title={uploadInfo.filename ?? "Workbook"}
         />
 
         <input ref={fileInputRef} className="file-input" type="file" accept=".xlsx" onChange={onFileChange} />
 
-        <div className="data-health-grid">
-          <MetricCard label="Job families" value={formatNumber(uploadInfo.job_family_count, 0)} />
-          <MetricCard label="In-house employees" value={formatNumber(uploadInfo.inhouse_count, 0)} />
-          <MetricCard label="Subcontractors" value={formatNumber(uploadInfo.subcontractor_count, 0)} />
+        <div className="data-health-total">
           <MetricCard label="Total workforce" value={formatNumber(totalWorkforce, 0)} tone="accent" />
+        </div>
+        <div className="data-health-grid data-health-grid--triple">
+          <MetricCard label="In-house" value={formatNumber(uploadInfo.inhouse_count, 0)} />
+          <MetricCard label="Outsourced" value={formatNumber(uploadInfo.subcontractor_count, 0)} />
+          <MetricCard label="Job families" value={formatNumber(uploadInfo.job_family_count, 0)} />
         </div>
       </div>
 

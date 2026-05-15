@@ -415,21 +415,23 @@ export default function App() {
         />
       ) : (
         <>
-          <UploadWorkspace
-            apiReady={apiReady}
-            busyAction={busyAction}
-            uploadInfo={uploadInfo}
-            uploadError={uploadError}
-            isDragging={isDragging}
-            fileInputRef={fileInputRef}
-            onFileChange={handleFileChange}
-            onDrop={handleDrop}
-            onDragStateChange={setIsDragging}
-            onCalculateTargetSplit={() => void calculateTargetSplit()}
-            restoredResultsAvailable={Boolean(restoredOptimization)}
-            onRestoreResults={restorePreviousScenario}
-            debugEnabled={debugEnabled}
-          />
+          {stage === "upload" ? (
+            <UploadWorkspace
+              apiReady={apiReady}
+              busyAction={busyAction}
+              uploadInfo={uploadInfo}
+              uploadError={uploadError}
+              isDragging={isDragging}
+              fileInputRef={fileInputRef}
+              onFileChange={handleFileChange}
+              onDrop={handleDrop}
+              onDragStateChange={setIsDragging}
+              onCalculateTargetSplit={() => void calculateTargetSplit()}
+              restoredResultsAvailable={Boolean(restoredOptimization)}
+              onRestoreResults={restorePreviousScenario}
+              debugEnabled={debugEnabled}
+            />
+          ) : null}
 
           {stage !== "upload" && uploadInfo && allMappingsResolved ? (
             <ScenarioControls
