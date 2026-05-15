@@ -268,7 +268,9 @@ type ScenarioControlsProps = {
 };
 
 export function ScenarioControls({ settings, onUpdate, families = [] }: ScenarioControlsProps) {
-  const [openSections, setOpenSections] = useState<Set<AccordionId>>(() => new Set(["saudization"]));
+  // R23: all input accordions start closed so the user can scan the categories
+  // before drilling in. Target mode still auto-expands the Target panel below.
+  const [openSections, setOpenSections] = useState<Set<AccordionId>>(() => new Set());
 
   function toggleSection(id: AccordionId) {
     setOpenSections((current) => {
@@ -424,10 +426,10 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
           >
             <FieldStack>
               <ToggleField
-                label="Allow reducing Saudi headcount"
-                hint="Off by default to protect current Saudi employees."
-                checked={settings.can_reduce_current_saudi}
-                onChange={(value) => onUpdate("can_reduce_current_saudi", value)}
+                label="Protect Current Saudis"
+                hint="On by default: existing Saudi employees can't be reduced by the optimizer."
+                checked={!settings.can_reduce_current_saudi}
+                onChange={(value) => onUpdate("can_reduce_current_saudi", !value)}
               />
               <ToggleField
                 label="Protect tenured employees"
