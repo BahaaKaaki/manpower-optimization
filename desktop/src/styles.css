@@ -186,13 +186,16 @@ button, input, select {
 }
 
 .home-cover-tagline {
-  margin-top: 14px !important;
-  font-size: 16px !important;
-  font-style: italic;
+  margin-top: 16px !important;
+  font-size: 18px !important;
+  font-style: italic !important;
   font-weight: 500 !important;
-  color: rgba(255, 255, 255, 0.85) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
   letter-spacing: 0.01em !important;
   text-transform: none !important;
+  transform: skewX(-6deg);
+  transform-origin: left center;
+  display: inline-block;
 }
 
 .home-cover-actions {
