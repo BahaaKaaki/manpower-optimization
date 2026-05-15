@@ -1534,6 +1534,54 @@ button, input, select {
   margin-top: 16px;
 }
 
+.scenario-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.scenario-column {
+  min-width: 0;
+}
+
+.scenario-subsection-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.control-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-100, #e6f4ea);
+  color: var(--accent-700, #2e8540);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: help;
+  user-select: none;
+}
+
+@media (max-width: 980px) {
+  .scenario-two-column {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
 .advanced-settings-block {
   margin-top: 18px;
 }

@@ -195,7 +195,21 @@ function NumericTextInput({
   );
 }
 
-type AccordionId = "saudization" | "cost" | "protection" | "custom" | "target";
+type AccordionId = "saudization" | "outsourced" | "protection" | "target" | "hard";
+
+function InfoIcon({ title }: { title: string }) {
+  // Lightweight (!) icon with a native title= tooltip. Sufficient for a single
+  // short hint; if we ever need rich tooltips we can promote to a custom popover.
+  return (
+    <span className="control-info-icon" role="img" aria-label="info" title={title}>
+      ⓘ
+    </span>
+  );
+}
+
+function SubsectionLabel({ children }: { children: ReactNode }) {
+  return <div className="scenario-subsection-label">{children}</div>;
+}
 
 const MAX_RATIO_DEFAULTS: Array<{ family: string; defaultRatio: string }> = [
   { family: "Quarries Foreman", defaultRatio: "1:15" },
@@ -349,105 +363,166 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
         <div className="scenario-accordion-stack">
           <AccordionSection
             id="saudization"
-            title="Saudization & Risk"
+            title="Saudization"
             isOpen={openSections.has("saudization")}
             onToggle={toggleSection}
           >
-            <FieldStack>
-              <ToggleField
-                label="Enforce overall Saudization"
-                checked={settings.enforce_saudization}
-                onChange={(value) => onUpdate("enforce_saudization", value)}
-              />
-              <NumberField
-                label="Overall rate"
-                min={0}
-                max={1}
-                value={settings.saudization_rate}
-                onChange={(value) => onUpdate("saudization_rate", value)}
-              />
-              <NumberField
-                label="Engineers"
-                min={0}
-                max={1}
-                value={settings.engineer_saudization_rate}
-                onChange={(value) => onUpdate("engineer_saudization_rate", value)}
-              />
-              <NumberField
-                label="Sales"
-                min={0}
-                max={1}
-                value={settings.sales_saudization_rate}
-                onChange={(value) => onUpdate("sales_saudization_rate", value)}
-              />
-              <NumberField
-                label="Management"
-                min={0}
-                max={1}
-                value={settings.management_saudization_rate}
-                onChange={(value) => onUpdate("management_saudization_rate", value)}
-              />
-              <hr className="control-divider" />
-              <NumberField
-                label="Risk factor"
-                hint="Outsourced workers count as (1 − risk) of an in-house worker for the minimum-headcount constraint. At 0 the haircut is disabled."
-                min={0}
-                max={1}
-                value={settings.risk_factor}
-                onChange={(value) => onUpdate("risk_factor", value)}
-              />
-              <ToggleField
-                label="Use negotiated rates"
-                checked={settings.negotiated_rates}
-                onChange={(value) => onUpdate("negotiated_rates", value)}
-              />
-              <NumberField
-                label="Insurance cost"
-                value={settings.negotiated_insurance_cost}
-                disabled={!settings.negotiated_rates}
-                suffix="SAR"
-                onChange={(value) => onUpdate("negotiated_insurance_cost", value)}
-              />
-              <NumberField
-                label="Service margin"
-                value={settings.negotiated_service_margin}
-                disabled={!settings.negotiated_rates}
-                suffix="SAR"
-                onChange={(value) => onUpdate("negotiated_service_margin", value)}
-              />
-            </FieldStack>
+            <div className="scenario-two-column">
+              <div className="scenario-column">
+                <SubsectionLabel>A. Overall Saudization</SubsectionLabel>
+                <FieldStack>
+                  <ToggleField
+                    label="Enforce overall Saudization"
+                    checked={settings.enforce_saudization}
+                    onChange={(value) => onUpdate("enforce_saudization", value)}
+                  />
+                  <NumberField
+                    label="Overall rate"
+                    min={0}
+                    max={1}
+                    value={settings.saudization_rate}
+                    onChange={(value) => onUpdate("saudization_rate", value)}
+                  />
+                  <NumberField
+                    label="Saudi cost premium"
+                    hint="Saudi in-house cost as a multiple of non-Saudi in-house cost. Floored at 1.0× so Saudis cannot be cheaper than non-Saudis."
+                    min={1}
+                    max={3}
+                    step={0.05}
+                    value={settings.saudi_cost_premium}
+                    suffix="× non-Saudi"
+                    onChange={(value) => onUpdate("saudi_cost_premium", value)}
+                  />
+                </FieldStack>
+              </div>
+              <div className="scenario-column">
+                <SubsectionLabel>B. Saudization by Job Family</SubsectionLabel>
+                <FieldStack>
+                  <NumberField
+                    label="Engineers"
+                    min={0}
+                    max={1}
+                    value={settings.engineer_saudization_rate}
+                    onChange={(value) => onUpdate("engineer_saudization_rate", value)}
+                  />
+                  <NumberField
+                    label="Sales"
+                    min={0}
+                    max={1}
+                    value={settings.sales_saudization_rate}
+                    onChange={(value) => onUpdate("sales_saudization_rate", value)}
+                  />
+                  <NumberField
+                    label="Management"
+                    min={0}
+                    max={1}
+                    value={settings.management_saudization_rate}
+                    onChange={(value) => onUpdate("management_saudization_rate", value)}
+                  />
+                </FieldStack>
+              </div>
+            </div>
           </AccordionSection>
 
           <AccordionSection
-            id="protection"
-            title="Workforce Protection"
-            isOpen={openSections.has("protection")}
+            id="outsourced"
+            title="Outsourced Employees"
+            isOpen={openSections.has("outsourced")}
             onToggle={toggleSection}
           >
-            <FieldStack>
-              <ToggleField
-                label="Protect Current Saudis"
-                hint="On by default: existing Saudi employees can't be reduced by the optimizer."
-                checked={!settings.can_reduce_current_saudi}
-                onChange={(value) => onUpdate("can_reduce_current_saudi", !value)}
-              />
-              <ToggleField
-                label="Protect tenured employees"
-                checked={settings.protect_tenured_inhouse}
-                onChange={(value) => onUpdate("protect_tenured_inhouse", value)}
-              />
-              <NumberField
-                label="Minimum tenure"
-                min={0}
-                max={60}
-                step={0.5}
-                value={settings.tenure_threshold_years}
-                disabled={!settings.protect_tenured_inhouse}
-                suffix="years"
-                onChange={(value) => onUpdate("tenure_threshold_years", value)}
-              />
-            </FieldStack>
+            <div className="scenario-two-column">
+              <div className="scenario-column">
+                <SubsectionLabel>
+                  A. Outsourcing Risk Factor{" "}
+                  <InfoIcon title="The risk factor discounts outsourced workers against the minimum-headcount constraint: an outsourced worker counts as (1 − risk) of an in-house worker. At 0 the haircut is disabled and outsourced workers count as in-house. At 1 they don't count at all." />
+                </SubsectionLabel>
+                <FieldStack>
+                  <NumberField
+                    label="Risk factor"
+                    min={0}
+                    max={1}
+                    value={settings.risk_factor}
+                    onChange={(value) => onUpdate("risk_factor", value)}
+                  />
+                </FieldStack>
+              </div>
+              <div className="scenario-column">
+                <SubsectionLabel>B. Enter Renegotiated Rate</SubsectionLabel>
+                <FieldStack>
+                  <ToggleField
+                    label="Use negotiated rates"
+                    checked={settings.negotiated_rates}
+                    onChange={(value) => onUpdate("negotiated_rates", value)}
+                  />
+                  <NumberField
+                    label="Insurance cost"
+                    value={settings.negotiated_insurance_cost}
+                    disabled={!settings.negotiated_rates}
+                    suffix="SAR"
+                    onChange={(value) => onUpdate("negotiated_insurance_cost", value)}
+                  />
+                  <NumberField
+                    label="Service margin"
+                    value={settings.negotiated_service_margin}
+                    disabled={!settings.negotiated_rates}
+                    suffix="SAR"
+                    onChange={(value) => onUpdate("negotiated_service_margin", value)}
+                  />
+                  <hr className="control-divider" />
+                  <ToggleField
+                    label="Override outsource cost"
+                    hint="When on, outsource cost is set as a fraction of non-Saudi in-house cost (replaces the workbook value)."
+                    checked={settings.outsource_cost_discount !== null}
+                    onChange={(value) =>
+                      onUpdate("outsource_cost_discount", value ? 0.2 : (null as unknown as number))
+                    }
+                  />
+                  <NumberField
+                    label="Outsource discount vs non-Saudi"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={settings.outsource_cost_discount ?? 0}
+                    disabled={settings.outsource_cost_discount === null}
+                    onChange={(value) => onUpdate("outsource_cost_discount", value)}
+                  />
+                </FieldStack>
+              </div>
+            </div>
           </AccordionSection>
+
+          {!isTargetMode ? (
+            <AccordionSection
+              id="protection"
+              title="Workforce Protection"
+              isOpen={openSections.has("protection")}
+              onToggle={toggleSection}
+            >
+              <FieldStack>
+                <ToggleField
+                  label="Protect Current Saudis"
+                  hint="On by default: existing Saudi employees can't be reduced by the optimizer."
+                  checked={!settings.can_reduce_current_saudi}
+                  onChange={(value) => onUpdate("can_reduce_current_saudi", !value)}
+                />
+                <ToggleField
+                  label="Protect tenured employees"
+                  checked={settings.protect_tenured_inhouse}
+                  onChange={(value) => onUpdate("protect_tenured_inhouse", value)}
+                />
+                <NumberField
+                  label="Minimum tenure"
+                  min={0}
+                  max={60}
+                  step={0.5}
+                  value={settings.tenure_threshold_years}
+                  disabled={!settings.protect_tenured_inhouse}
+                  suffix="years"
+                  onChange={(value) => onUpdate("tenure_threshold_years", value)}
+                />
+              </FieldStack>
+            </AccordionSection>
+          ) : null}
 
           {isTargetMode ? (
           <AccordionSection
@@ -504,39 +579,13 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
 
         <div className="advanced-settings-block">
           <AccordionSection
-            id="custom"
-            title="Advanced Settings"
-            isOpen={openSections.has("custom")}
+            id="hard"
+            title="Hard Inputs"
+            subtitle="Supervisor:worker ratios"
+            isOpen={openSections.has("hard")}
             onToggle={toggleSection}
           >
             <FieldStack>
-              <NumberField
-                label="Saudi cost premium"
-                hint="Saudi in-house cost as a multiple of non-Saudi in-house cost. Floored at 1.0× so Saudis cannot be cheaper than non-Saudis. Default 1.10 = 10% more expensive."
-                min={1}
-                max={3}
-                step={0.05}
-                value={settings.saudi_cost_premium}
-                suffix="× non-Saudi"
-                onChange={(value) => onUpdate("saudi_cost_premium", value)}
-              />
-              <ToggleField
-                label="Override outsource cost"
-                hint="When on, outsource cost is set as a fraction of non-Saudi in-house cost (replaces workbook value)."
-                checked={settings.outsource_cost_discount !== null}
-                onChange={(value) =>
-                  onUpdate("outsource_cost_discount", value ? 0.2 : (null as unknown as number))
-                }
-              />
-              <NumberField
-                label="Outsource discount vs non-Saudi"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings.outsource_cost_discount ?? 0}
-                disabled={settings.outsource_cost_discount === null}
-                onChange={(value) => onUpdate("outsource_cost_discount", value)}
-              />
               <RatioOverrideEditor
                 overrides={settings.max_ratio_overrides}
                 onUpdate={(next) => onUpdate("max_ratio_overrides", next)}
