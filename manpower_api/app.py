@@ -118,7 +118,7 @@ class OptimizationSettingsRequest(BaseModel):
     enforce_saudization: bool = True
     saudization_rate: float = Field(default=0.30, ge=0, le=1)
     can_reduce_current_saudi: bool = False
-    risk_factor: float = Field(default=0.25, gt=0, le=1)
+    risk_factor: float = Field(default=0.25, ge=0, le=1)
     negotiated_rates: bool = False
     negotiated_insurance_cost: float = 0.0
     negotiated_service_margin: float = 0.0
@@ -127,7 +127,7 @@ class OptimizationSettingsRequest(BaseModel):
     engineer_saudization_rate: float = Field(default=0.25, ge=0, le=1)
     sales_saudization_rate: float = Field(default=0.60, ge=0, le=1)
     management_saudization_rate: float = Field(default=0.35, ge=0, le=1)
-    saudi_cost_premium: float = Field(default=1.10, ge=0.5, le=3.0)
+    saudi_cost_premium: float = Field(default=1.10, ge=1.0, le=3.0)
     outsource_cost_discount: float | None = Field(default=None, ge=0, le=1)
     max_ratio_overrides: dict[str, str] = Field(default_factory=dict)
     optimization_mode: Literal["current", "target"] = "current"

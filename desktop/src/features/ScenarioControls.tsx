@@ -91,19 +91,14 @@ function NumberField({
         />
       ) : (
         <div className="number-input-wrap">
-          <input
-            type="number"
+          <NumericTextInput
             className="number-input"
             min={min}
             max={max}
             step={step}
             value={value}
             disabled={disabled}
-            onFocus={(e) => e.currentTarget.select()}
-            onChange={(e) => {
-              const raw = e.target.value;
-              onChange(raw === "" ? 0 : Number(raw));
-            }}
+            onChange={onChange}
           />
           {suffix ? <span className="number-input-suffix">{suffix}</span> : null}
         </div>
@@ -112,7 +107,109 @@ function NumberField({
   );
 }
 
-type AccordionId = "saudization" | "cost" | "protection" | "custom" | "target";
+// Numeric text input that drops the leading "0" cleanly on first keystroke.
+// Backed by an internal text buffer so the user can wipe and retype without
+// the parsed numeric value bleeding back into the display.
+//
+// When ``value`` is ``undefined`` the input renders empty with the optional
+// placeholder; ``onClear`` (if provided) fires when the user blurs an empty
+// buffer, letting the caller distinguish "unset" from "zero".
+function NumericTextInput({
+  value,
+  onChange,
+  onClear,
+  placeholder,
+  min,
+  max,
+  step,
+  disabled,
+  className,
+}: {
+  value: number | undefined;
+  onChange: (value: number) => void;
+  onClear?: () => void;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const [text, setText] = useState<string>(() => (value === undefined ? "" : String(value)));
+  const [focused, setFocused] = useState(false);
+
+  // While unfocused, re-sync the buffer from the parent so external state
+  // changes are reflected. While focused the user owns the buffer.
+  if (!focused) {
+    const expected = value === undefined ? "" : String(value);
+    if (text !== expected && Number(text) !== value) {
+      setText(expected);
+    }
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className={className}
+      disabled={disabled}
+      value={text}
+      placeholder={placeholder}
+      onFocus={(e) => {
+        setFocused(true);
+        e.currentTarget.select();
+      }}
+      onBlur={() => {
+        setFocused(false);
+        if (text === "") {
+          if (onClear) onClear();
+          return;
+        }
+        if (text === "-" || Number.isNaN(Number(text))) {
+          setText(value === undefined ? "" : String(value));
+        }
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        if (raw === "") {
+          setText("");
+          if (onClear) onClear();
+          else onChange(0);
+          return;
+        }
+        // Allow intermediate states (e.g. "-", "1.") while typing.
+        if (raw === "-" || raw === ".") {
+          setText(raw);
+          return;
+        }
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed)) return;
+        let next = parsed;
+        if (min !== undefined && next < min) next = min;
+        if (max !== undefined && next > max) next = max;
+        if (step !== undefined && step >= 1) next = Math.round(next);
+        setText(raw);
+        onChange(next);
+      }}
+    />
+  );
+}
+
+type AccordionId = "saudization" | "outsourced" | "protection" | "target" | "hard";
+
+function InfoIcon({ title }: { title: string }) {
+  // Lightweight (!) icon with a native title= tooltip. Sufficient for a single
+  // short hint; if we ever need rich tooltips we can promote to a custom popover.
+  return (
+    <span className="control-info-icon" role="img" aria-label="info" title={title}>
+      ⓘ
+    </span>
+  );
+}
+
+function SubsectionLabel({ children }: { children: ReactNode }) {
+  return <div className="scenario-subsection-label">{children}</div>;
+}
 
 const MAX_RATIO_DEFAULTS: Array<{ family: string; defaultRatio: string }> = [
   { family: "Quarries Foreman", defaultRatio: "1:15" },
@@ -185,7 +282,9 @@ type ScenarioControlsProps = {
 };
 
 export function ScenarioControls({ settings, onUpdate, families = [] }: ScenarioControlsProps) {
-  const [openSections, setOpenSections] = useState<Set<AccordionId>>(() => new Set(["saudization"]));
+  // R23: all input accordions start closed so the user can scan the categories
+  // before drilling in. Target mode still auto-expands the Target panel below.
+  const [openSections, setOpenSections] = useState<Set<AccordionId>>(() => new Set());
 
   function toggleSection(id: AccordionId) {
     setOpenSections((current) => {
@@ -228,147 +327,249 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
   return (
     <>
       <section className="mode-panel">
-        <SectionHeader
-          eyebrow="User Assumptions"
-          title="Optimization Mode"
-        />
+        <SectionHeader title="Optimization Mode" />
 
-        <div
-          className={`mode-toggle-card${isTargetMode ? " mode-toggle-card--target" : " mode-toggle-card--current"}`}
-          role="radiogroup"
-          aria-label="Optimization mode"
-        >
-          <div className="mode-toggle-segmented">
-            <button
-              type="button"
-              className={`mode-toggle-option${!isTargetMode ? " mode-toggle-option--active" : ""}`}
-              role="radio"
-              aria-checked={!isTargetMode}
-              onClick={() => setMode("current")}
-            >
-              <span className="mode-toggle-option-label">Optimize Current Payroll</span>
-            </button>
-            <button
-              type="button"
-              className={`mode-toggle-option${isTargetMode ? " mode-toggle-option--active" : ""}`}
-              role="radio"
-              aria-checked={isTargetMode}
-              onClick={() => setMode("target")}
-            >
-              <span className="mode-toggle-option-label">Target Manpower Plan</span>
-            </button>
-          </div>
+        <div className="mode-card-grid" role="radiogroup" aria-label="Optimization mode">
+          <button
+            type="button"
+            className={`mode-card${!isTargetMode ? " mode-card--active" : ""}`}
+            role="radio"
+            aria-checked={!isTargetMode}
+            onClick={() => setMode("current")}
+          >
+            <span className="mode-card-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M3 20V11.5L12 4l9 7.5V20H14v-6h-4v6H3Z"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <span className="mode-card-text">
+              <span className="mode-card-title">Optimize Current Manpower</span>
+              <span className="mode-card-desc">
+                Keep today's headcount. Find the best in house and outsourced mix to lower payroll cost.
+              </span>
+            </span>
+            <span className="mode-card-check" aria-hidden>
+              <svg viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M5 8.4L7.1 10.5L11 6.5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className={`mode-card${isTargetMode ? " mode-card--active" : ""}`}
+            role="radio"
+            aria-checked={isTargetMode}
+            onClick={() => setMode("target")}
+          >
+            <span className="mode-card-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" />
+                <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.6" />
+                <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+              </svg>
+            </span>
+            <span className="mode-card-text">
+              <span className="mode-card-title">Input and Optimize a Target Manpower Plan</span>
+              <span className="mode-card-desc">
+                Type the headcount you want per job family. The tool plans the cheapest way to get there.
+              </span>
+            </span>
+            <span className="mode-card-check" aria-hidden>
+              <svg viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M5 8.4L7.1 10.5L11 6.5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
         </div>
       </section>
 
       <section className="controls-panel">
-        <SectionHeader
-          eyebrow="Assumptions"
-          title="Inputs"
-        />
+        <SectionHeader title="Inputs" />
 
         <div className="scenario-accordion-stack">
           <AccordionSection
             id="saudization"
-            title="Saudization & Risk"
+            title="Saudization"
             isOpen={openSections.has("saudization")}
             onToggle={toggleSection}
           >
-            <FieldStack>
-              <ToggleField
-                label="Enforce overall Saudization"
-                checked={settings.enforce_saudization}
-                onChange={(value) => onUpdate("enforce_saudization", value)}
-              />
-              <NumberField
-                label="Overall rate"
-                min={0}
-                max={1}
-                value={settings.saudization_rate}
-                onChange={(value) => onUpdate("saudization_rate", value)}
-              />
-              <NumberField
-                label="Engineers"
-                min={0}
-                max={1}
-                value={settings.engineer_saudization_rate}
-                onChange={(value) => onUpdate("engineer_saudization_rate", value)}
-              />
-              <NumberField
-                label="Sales"
-                min={0}
-                max={1}
-                value={settings.sales_saudization_rate}
-                onChange={(value) => onUpdate("sales_saudization_rate", value)}
-              />
-              <NumberField
-                label="Management"
-                min={0}
-                max={1}
-                value={settings.management_saudization_rate}
-                onChange={(value) => onUpdate("management_saudization_rate", value)}
-              />
-              <hr className="control-divider" />
-              <NumberField
-                label="Risk factor"
-                hint="Outsourced workers count as (1 − risk) of an in-house worker for the minimum-headcount constraint."
-                min={0.01}
-                max={1}
-                value={settings.risk_factor}
-                onChange={(value) => onUpdate("risk_factor", value)}
-              />
-              <ToggleField
-                label="Use negotiated rates"
-                checked={settings.negotiated_rates}
-                onChange={(value) => onUpdate("negotiated_rates", value)}
-              />
-              <NumberField
-                label="Insurance cost"
-                value={settings.negotiated_insurance_cost}
-                disabled={!settings.negotiated_rates}
-                suffix="SAR"
-                onChange={(value) => onUpdate("negotiated_insurance_cost", value)}
-              />
-              <NumberField
-                label="Service margin"
-                value={settings.negotiated_service_margin}
-                disabled={!settings.negotiated_rates}
-                suffix="SAR"
-                onChange={(value) => onUpdate("negotiated_service_margin", value)}
-              />
-            </FieldStack>
+            <div className="scenario-two-column">
+              <div className="scenario-column">
+                <SubsectionLabel>A. Overall Saudization</SubsectionLabel>
+                <FieldStack>
+                  <ToggleField
+                    label="Enforce overall Saudization"
+                    checked={settings.enforce_saudization}
+                    onChange={(value) => onUpdate("enforce_saudization", value)}
+                  />
+                  <NumberField
+                    label="Overall rate"
+                    min={0}
+                    max={1}
+                    value={settings.saudization_rate}
+                    onChange={(value) => onUpdate("saudization_rate", value)}
+                  />
+                  <NumberField
+                    label="Saudi cost premium"
+                    hint="Saudi in-house cost as a multiple of non-Saudi in-house cost. Floored at 1.0× so Saudis cannot be cheaper than non-Saudis."
+                    min={1}
+                    max={3}
+                    step={0.05}
+                    value={settings.saudi_cost_premium}
+                    suffix="× non-Saudi"
+                    onChange={(value) => onUpdate("saudi_cost_premium", value)}
+                  />
+                </FieldStack>
+              </div>
+              <div className="scenario-column">
+                <SubsectionLabel>B. Saudization by Job Family</SubsectionLabel>
+                <FieldStack>
+                  <NumberField
+                    label="Engineers"
+                    min={0}
+                    max={1}
+                    value={settings.engineer_saudization_rate}
+                    onChange={(value) => onUpdate("engineer_saudization_rate", value)}
+                  />
+                  <NumberField
+                    label="Sales"
+                    min={0}
+                    max={1}
+                    value={settings.sales_saudization_rate}
+                    onChange={(value) => onUpdate("sales_saudization_rate", value)}
+                  />
+                  <NumberField
+                    label="Management"
+                    min={0}
+                    max={1}
+                    value={settings.management_saudization_rate}
+                    onChange={(value) => onUpdate("management_saudization_rate", value)}
+                  />
+                </FieldStack>
+              </div>
+            </div>
           </AccordionSection>
 
           <AccordionSection
-            id="protection"
-            title="Workforce Protection"
-            isOpen={openSections.has("protection")}
+            id="outsourced"
+            title="Outsourced Employees"
+            isOpen={openSections.has("outsourced")}
             onToggle={toggleSection}
           >
-            <FieldStack>
-              <ToggleField
-                label="Allow reducing Saudi headcount"
-                hint="Off by default to protect current Saudi employees."
-                checked={settings.can_reduce_current_saudi}
-                onChange={(value) => onUpdate("can_reduce_current_saudi", value)}
-              />
-              <ToggleField
-                label="Protect tenured employees"
-                checked={settings.protect_tenured_inhouse}
-                onChange={(value) => onUpdate("protect_tenured_inhouse", value)}
-              />
-              <NumberField
-                label="Minimum tenure"
-                min={0}
-                max={60}
-                step={0.5}
-                value={settings.tenure_threshold_years}
-                disabled={!settings.protect_tenured_inhouse}
-                suffix="years"
-                onChange={(value) => onUpdate("tenure_threshold_years", value)}
-              />
-            </FieldStack>
+            <div className="scenario-two-column">
+              <div className="scenario-column">
+                <SubsectionLabel>
+                  A. Outsourcing Risk Factor{" "}
+                  <InfoIcon title="The risk factor discounts outsourced workers against the minimum-headcount constraint: an outsourced worker counts as (1 − risk) of an in-house worker. At 0 the haircut is disabled and outsourced workers count as in-house. At 1 they don't count at all." />
+                </SubsectionLabel>
+                <FieldStack>
+                  <NumberField
+                    label="Risk factor"
+                    min={0}
+                    max={1}
+                    value={settings.risk_factor}
+                    onChange={(value) => onUpdate("risk_factor", value)}
+                  />
+                </FieldStack>
+              </div>
+              <div className="scenario-column">
+                <SubsectionLabel>B. Enter Renegotiated Rate</SubsectionLabel>
+                <FieldStack>
+                  <ToggleField
+                    label="Use negotiated rates"
+                    checked={settings.negotiated_rates}
+                    onChange={(value) => onUpdate("negotiated_rates", value)}
+                  />
+                  <NumberField
+                    label="Insurance cost"
+                    value={settings.negotiated_insurance_cost}
+                    disabled={!settings.negotiated_rates}
+                    suffix="SAR"
+                    onChange={(value) => onUpdate("negotiated_insurance_cost", value)}
+                  />
+                  <NumberField
+                    label="Service margin"
+                    value={settings.negotiated_service_margin}
+                    disabled={!settings.negotiated_rates}
+                    suffix="SAR"
+                    onChange={(value) => onUpdate("negotiated_service_margin", value)}
+                  />
+                  <hr className="control-divider" />
+                  <ToggleField
+                    label="Override outsource cost"
+                    hint="When on, outsource cost is set as a fraction of non-Saudi in-house cost (replaces the workbook value)."
+                    checked={settings.outsource_cost_discount !== null}
+                    onChange={(value) =>
+                      onUpdate("outsource_cost_discount", value ? 0.2 : (null as unknown as number))
+                    }
+                  />
+                  <NumberField
+                    label="Outsource discount vs non-Saudi"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={settings.outsource_cost_discount ?? 0}
+                    disabled={settings.outsource_cost_discount === null}
+                    onChange={(value) => onUpdate("outsource_cost_discount", value)}
+                  />
+                </FieldStack>
+              </div>
+            </div>
           </AccordionSection>
+
+          {!isTargetMode ? (
+            <AccordionSection
+              id="protection"
+              title="Workforce Protection"
+              isOpen={openSections.has("protection")}
+              onToggle={toggleSection}
+            >
+              <FieldStack>
+                <ToggleField
+                  label="Protect Current Saudis"
+                  hint="On by default: existing Saudi employees can't be reduced by the optimizer."
+                  checked={!settings.can_reduce_current_saudi}
+                  onChange={(value) => onUpdate("can_reduce_current_saudi", !value)}
+                />
+                <ToggleField
+                  label="Protect tenured employees"
+                  checked={settings.protect_tenured_inhouse}
+                  onChange={(value) => onUpdate("protect_tenured_inhouse", value)}
+                />
+                <NumberField
+                  label="Minimum tenure"
+                  min={0}
+                  max={60}
+                  step={0.5}
+                  value={settings.tenure_threshold_years}
+                  disabled={!settings.protect_tenured_inhouse}
+                  suffix="years"
+                  onChange={(value) => onUpdate("tenure_threshold_years", value)}
+                />
+              </FieldStack>
+            </AccordionSection>
+          ) : null}
 
           {isTargetMode ? (
           <AccordionSection
@@ -402,19 +603,14 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                           <td>{family}</td>
                           <td>{currentHc !== undefined ? currentHc : <em>new</em>}</td>
                           <td>
-                            <input
-                              type="number"
+                            <NumericTextInput
                               min={0}
                               step={1}
                               className="number-input target-headcount-input"
-                              value={targetHc !== undefined ? targetHc : ""}
+                              value={targetHc}
                               placeholder={placeholder}
-                              onFocus={(e) => e.currentTarget.select()}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                if (v === "") setTargetHeadcount(family, null);
-                                else setTargetHeadcount(family, Number(v));
-                              }}
+                              onChange={(v) => setTargetHeadcount(family, v)}
+                              onClear={() => setTargetHeadcount(family, null)}
                             />
                           </td>
                         </tr>
@@ -430,39 +626,13 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
 
         <div className="advanced-settings-block">
           <AccordionSection
-            id="custom"
-            title="Advanced Settings"
-            isOpen={openSections.has("custom")}
+            id="hard"
+            title="Hard Inputs"
+            subtitle="Supervisor:worker ratios"
+            isOpen={openSections.has("hard")}
             onToggle={toggleSection}
           >
             <FieldStack>
-              <NumberField
-                label="Saudi cost premium"
-                hint="Saudi in-house cost as a multiple of non-Saudi in-house cost. Default 1.10 = 10% more expensive."
-                min={0.5}
-                max={3}
-                step={0.05}
-                value={settings.saudi_cost_premium}
-                suffix="× non-Saudi"
-                onChange={(value) => onUpdate("saudi_cost_premium", value)}
-              />
-              <ToggleField
-                label="Override outsource cost"
-                hint="When on, outsource cost is set as a fraction of non-Saudi in-house cost (replaces workbook value)."
-                checked={settings.outsource_cost_discount !== null}
-                onChange={(value) =>
-                  onUpdate("outsource_cost_discount", value ? 0.2 : (null as unknown as number))
-                }
-              />
-              <NumberField
-                label="Outsource discount vs non-Saudi"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings.outsource_cost_discount ?? 0}
-                disabled={settings.outsource_cost_discount === null}
-                onChange={(value) => onUpdate("outsource_cost_discount", value)}
-              />
               <RatioOverrideEditor
                 overrides={settings.max_ratio_overrides}
                 onUpdate={(next) => onUpdate("max_ratio_overrides", next)}
@@ -501,17 +671,13 @@ function RatioOverrideEditor({
               <span className="ratio-override-family">{family}</span>
               <span className="ratio-override-control">
                 <span className="ratio-override-prefix">1 :</span>
-                <input
-                  type="number"
+                <NumericTextInput
                   min={1}
                   step={1}
                   className="number-input ratio-override-input"
-                  value={denom || ""}
-                  placeholder={parseRatioDenominator(defaultRatio).toString()}
-                  onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) => {
+                  value={denom || parseRatioDenominator(defaultRatio) || 0}
+                  onChange={(value) => {
                     const next = { ...overrides };
-                    const value = Number(event.target.value);
                     if (!Number.isFinite(value) || value <= 0) {
                       delete next[family];
                     } else {

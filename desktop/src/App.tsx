@@ -374,11 +374,8 @@ export default function App() {
       stageBadges={stageBadges}
       apiReady={apiReady}
       status={status}
-      busyAction={busyAction}
       canRun={Boolean(uploadInfo)}
       canResumeResults={Boolean(restoredOptimization) && !optimization}
-      onUploadClick={() => fileInputRef.current?.click()}
-      onRunOptimization={() => void runOptimization()}
       onResumeResults={restorePreviousScenario}
       onDownload={optimization ? () => void downloadResults() : undefined}
       onNavigate={handleNavigate}
@@ -409,27 +406,30 @@ export default function App() {
           unmappedPairs={unmappedPairs}
           workbookPairs={workbookPairs}
           customFamilies={settings.custom_families}
+          isTargetMode={settings.optimization_mode === "target"}
           busy={busyAction === "mappings"}
           onApply={(families) => void applyMappingResolutions(families)}
           onContinue={() => setActiveStage("ready")}
         />
       ) : (
         <>
-          <UploadWorkspace
-            apiReady={apiReady}
-            busyAction={busyAction}
-            uploadInfo={uploadInfo}
-            uploadError={uploadError}
-            isDragging={isDragging}
-            fileInputRef={fileInputRef}
-            onFileChange={handleFileChange}
-            onDrop={handleDrop}
-            onDragStateChange={setIsDragging}
-            onCalculateTargetSplit={() => void calculateTargetSplit()}
-            restoredResultsAvailable={Boolean(restoredOptimization)}
-            onRestoreResults={restorePreviousScenario}
-            debugEnabled={debugEnabled}
-          />
+          {stage === "upload" ? (
+            <UploadWorkspace
+              apiReady={apiReady}
+              busyAction={busyAction}
+              uploadInfo={uploadInfo}
+              uploadError={uploadError}
+              isDragging={isDragging}
+              fileInputRef={fileInputRef}
+              onFileChange={handleFileChange}
+              onDrop={handleDrop}
+              onDragStateChange={setIsDragging}
+              onCalculateTargetSplit={() => void calculateTargetSplit()}
+              restoredResultsAvailable={Boolean(restoredOptimization)}
+              onRestoreResults={restorePreviousScenario}
+              debugEnabled={debugEnabled}
+            />
+          ) : null}
 
           {stage !== "upload" && uploadInfo && allMappingsResolved ? (
             <ScenarioControls

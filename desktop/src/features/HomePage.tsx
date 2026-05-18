@@ -45,6 +45,7 @@ export function HomePage({ onStart }: HomePageProps) {
         <div className="home-cover-title">
           <h1>Manpower</h1>
           <p>Optimization Tool</p>
+          <p className="home-cover-tagline">A Decision Support System to Optimize Manpower Sourcing</p>
         </div>
         <div className="home-cover-actions" aria-label="Tool outcomes">
           <div>

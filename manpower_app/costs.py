@@ -92,12 +92,15 @@ def calculate_inhouse_cost_split(average_cost, saudi_count, non_saudi_count, sau
 
     ``saudi_premium`` is the assumed multiplier of Saudi cost over non-Saudi cost (1.10 by
     default — Saudis cost 10% more). The user can override it via the soft-input settings
-    so they can model "what if Saudis cost X% more / less".
+    to model "what if Saudis cost X% more". The premium is floored at ``1.0`` so Saudis
+    can never be cheaper than non-Saudis within a job family — if the inputs would
+    produce that inversion, we fall back to 1.0 × non-Saudi.
     """
     average_cost = safe_numeric(average_cost)
     saudi_count = safe_numeric(saudi_count)
     non_saudi_count = safe_numeric(non_saudi_count)
     premium = safe_numeric(saudi_premium) or DEFAULT_SAUDI_COST_PREMIUM
+    premium = max(1.0, premium)
 
     if saudi_count + non_saudi_count == 0:
         non_saudi_cost = average_cost * 2 / (1 + premium)

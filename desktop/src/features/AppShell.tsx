@@ -1,4 +1,4 @@
-import type { AppStage, BusyAction } from "../types";
+import type { AppStage } from "../types";
 
 const logoUrl = "/cpc-logo.png";
 
@@ -9,14 +9,6 @@ const workflowSteps: { id: AppStage; label: string }[] = [
   { id: "ready", label: "User Assumptions" },
   { id: "results", label: "Output" },
 ];
-
-function UploadIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-      <path d="M7.5 1.5V10M7.5 1.5L4.5 4.5M7.5 1.5L10.5 4.5M2 12.5H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
 
 function PlayIcon() {
   return (
@@ -42,12 +34,37 @@ function DownloadIcon() {
   );
 }
 
-const stageTitles: Record<AppStage, { eyebrow: string; title: string }> = {
-  home: { eyebrow: "Home Page", title: "Manpower Optimization Tool" },
-  upload: { eyebrow: "Data Upload", title: "Upload Workbook" },
-  mappings: { eyebrow: "Additional Inputs", title: "Job Families" },
-  ready: { eyebrow: "User Assumptions", title: "Optimization Mode" },
-  results: { eyebrow: "Output", title: "Output Summary" },
+function ChevronLeftIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+const STAGE_ORDER: AppStage[] = ["home", "upload", "mappings", "ready", "results"];
+const STAGE_LABELS: Record<AppStage, string> = {
+  home: "Home Page",
+  upload: "Data Upload",
+  mappings: "Additional Inputs",
+  ready: "User Assumptions",
+  results: "Output",
+};
+
+const stageTitles: Record<AppStage, { eyebrow: string }> = {
+  home: { eyebrow: "Home Page" },
+  upload: { eyebrow: "Data Upload" },
+  mappings: { eyebrow: "Additional Inputs" },
+  ready: { eyebrow: "User Assumptions" },
+  results: { eyebrow: "Output" },
 };
 
 export type StageBadgeTone = "neutral" | "positive" | "warning" | "danger" | "info";
@@ -63,11 +80,8 @@ type AppShellProps = {
   stageBadges?: Partial<Record<AppStage, StageBadge | undefined>>;
   apiReady: boolean;
   status: string;
-  busyAction: BusyAction;
   canRun: boolean;
   canResumeResults: boolean;
-  onUploadClick: () => void;
-  onRunOptimization: () => void;
   onResumeResults: () => void;
   onDownload?: () => void;
   onNavigate?: (stage: AppStage) => void;
@@ -80,17 +94,14 @@ export function AppShell({
   stageBadges,
   apiReady,
   status,
-  busyAction,
   canRun,
   canResumeResults,
-  onUploadClick,
-  onRunOptimization,
   onResumeResults,
   onDownload,
   onNavigate,
   children,
 }: AppShellProps) {
-  const { eyebrow, title } = stageTitles[stage];
+  const { eyebrow } = stageTitles[stage];
 
   if (stage === "home") {
     return <div className="layout-root layout-root--home">{children}</div>;
@@ -100,10 +111,9 @@ export function AppShell({
     <div className="layout-root">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <img src={logoUrl} alt="Workforce Studio" className="sidebar-logo" />
           <div className="sidebar-brand-text">
-            <span className="sidebar-brand-label">Workforce Studio</span>
-            <span className="sidebar-brand-name">Manpower Optimizer</span>
+            <span className="sidebar-brand-name">Manpower</span>
+            <span className="sidebar-brand-sub">Optimization Tool</span>
           </div>
         </div>
 
@@ -150,6 +160,7 @@ export function AppShell({
         </nav>
 
         <div className="sidebar-footer">
+          <img src={logoUrl} alt="CPC" className="sidebar-footer-logo" />
           <div className="engine-status">
             <span className={`engine-dot ${apiReady ? "ready" : ""}`} />
             <div className="engine-status-text">
@@ -157,14 +168,6 @@ export function AppShell({
               <span className="engine-status-value">{status}</span>
             </div>
           </div>
-          <button
-            className="sidebar-action upload"
-            disabled={!apiReady || busyAction === "upload"}
-            onClick={onUploadClick}
-          >
-            <UploadIcon />
-            <span>{canRun ? "Upload new workbook" : "Upload workbook"}</span>
-          </button>
           {!canRun && canResumeResults && (
             <button className="sidebar-action upload" onClick={onResumeResults}>
               <span>Resume last results</span>
@@ -176,8 +179,7 @@ export function AppShell({
       <main className="content-root">
         <div className="content-topbar">
           <div className="topbar-title-group">
-            <span className="topbar-eyebrow">{eyebrow}</span>
-            <h1 className="topbar-title">{title}</h1>
+            <h1 className="topbar-eyebrow">{eyebrow}</h1>
           </div>
           <div className="topbar-actions">
             {stage === "results" && onDownload && (
@@ -190,10 +192,64 @@ export function AppShell({
         <div className="content-body">
           <div className="content-body-inner" key={stage}>
             {children}
+            <StageNav
+              stage={stage}
+              reachableStages={reachableStages}
+              onNavigate={onNavigate}
+            />
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+function StageNav({
+  stage,
+  reachableStages,
+  onNavigate,
+}: {
+  stage: AppStage;
+  reachableStages: Set<AppStage>;
+  onNavigate?: (stage: AppStage) => void;
+}) {
+  const currentIndex = STAGE_ORDER.indexOf(stage);
+  const prevStage = currentIndex > 0 ? STAGE_ORDER[currentIndex - 1] : null;
+  const nextStage = currentIndex < STAGE_ORDER.length - 1 ? STAGE_ORDER[currentIndex + 1] : null;
+  const canGoPrev = !!prevStage && !!onNavigate && reachableStages.has(prevStage);
+  const canGoNext = !!nextStage && !!onNavigate && reachableStages.has(nextStage);
+
+  if (!canGoPrev && !canGoNext) return null;
+
+  return (
+    <nav className="stage-nav" aria-label="Workflow navigation">
+      <button
+        type="button"
+        className="stage-nav-btn stage-nav-btn--prev"
+        disabled={!canGoPrev}
+        onClick={canGoPrev && onNavigate ? () => onNavigate(prevStage!) : undefined}
+        aria-label={prevStage ? `Go back to ${STAGE_LABELS[prevStage]}` : "No previous step"}
+      >
+        <ChevronLeftIcon />
+        <span className="stage-nav-text">
+          <span className="stage-nav-eyebrow">Previous</span>
+          <span className="stage-nav-label">{prevStage ? STAGE_LABELS[prevStage] : "—"}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        className="stage-nav-btn stage-nav-btn--next"
+        disabled={!canGoNext}
+        onClick={canGoNext && onNavigate ? () => onNavigate(nextStage!) : undefined}
+        aria-label={nextStage ? `Go forward to ${STAGE_LABELS[nextStage]}` : "No next step"}
+      >
+        <span className="stage-nav-text">
+          <span className="stage-nav-eyebrow">Next</span>
+          <span className="stage-nav-label">{nextStage ? STAGE_LABELS[nextStage] : "—"}</span>
+        </span>
+        <ChevronRightIcon />
+      </button>
+    </nav>
   );
 }
 
