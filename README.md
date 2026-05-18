@@ -111,7 +111,15 @@ O + I = T
 O * (1 - R) + I >= M
 ```
 
-The equivalent outsource cap is `O <= (T - M) / R` when `R > 0`. When `R == 0` the haircut is disabled — the constraint degenerates to `O + I >= M`, which the LP can satisfy as long as `T >= M`. The API and desktop UI accept `0 <= R <= 1`; the rearranged closed-form `(T - M) / R` is only consulted when `R > 0`. The Excel export includes an **Optimization Audit** sheet with the final outsourced/in-house counts, `O * (1 - R) + I`, and pass/fail checks for each constraint.
+The equivalent outsource cap is `O <= (T - M) / R` when `R > 0`. When `R == 0` the haircut is disabled — the constraint degenerates to `O + I >= M`, which the LP can satisfy as long as `T >= M`. The API and desktop UI accept `0 <= R <= 1`; the rearranged closed-form `(T - M) / R` is only consulted when `R > 0`. R=0 is supported end-to-end (the previous service-layer guard that raised `ValueError` was removed in the 150526-batch-2 enhancements). The Excel export includes an **Optimization Audit** sheet with the final outsourced/in-house counts, `O * (1 - R) + I`, and pass/fail checks for each constraint.
+
+### Cost-inversion safety net
+
+When a workbook's per-row data makes outsourced workers *more expensive* than in-house non-Saudis for a family (e.g. the consultant-flagged "safety officers" case), the LP would otherwise prefer in-house on cost grounds and ignore the family's outsourceability rule. `manpower_app.costs.cap_outsourced_at_inhouse` caps the outsourced unit cost at the in-house non-Saudi unit cost so the ratio rule decides instead. This mirrors the Saudi premium clamp (`max(1.0, premium)`) which prevents Saudis from ever being cheaper than non-Saudis.
+
+## Business Unit Configuration (batch 2)
+
+The desktop workflow starts with a **BU Selection** step (Home → BU Selection → Data Upload → Optimization Mode → Additional Inputs → User Assumptions → Output). 9 BUs are hardcoded (MGIC active; UAAC, FAST, SACODECO, Sphinx Glass, Premco Precast, Premco Ready Mix, Bahra Steel, UCC pending). Each active BU has its own **Configuration** panel (outsourceability per family, supervisor:worker ratios, and engine knobs — Saudi cost premium and outsource-cost override). The configuration is stored locally per BU via the existing `manpower-prefs.json` Tauri store (or `localStorage` in the browser build) under keys like `bu:MGIC:configuration`, and the active configuration is merged onto every `/optimization/run` request as the `outsourceability_overrides`, `ratio_overrides` (via `max_ratio_overrides`), and `driver_overrides` fields. The backend re-derives `Outsourceability Type`, `Maximum Ratio`, `Driver Value`, and `Minimum Headcount Needed` per family inside `prepare_model_data` whenever overrides are supplied; empty overrides preserve the historical hardcoded defaults so Streamlit is unaffected.
 
 ## Input Workbook
 

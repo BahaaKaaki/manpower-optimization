@@ -1,4 +1,4 @@
-// Tier 5 — user-defined family specs
+// Tier 5.user-defined family specs
 
 export type ActivityProfession = { activity: string; profession: string };
 
@@ -40,6 +40,9 @@ export type Settings = {
   enforce_saudization: boolean;
   saudization_rate: number;
   can_reduce_current_saudi: boolean;
+  // Dynamic Saudi protection 0.0–1.0 (overrides can_reduce_current_saudi when set).
+  // 1.0 = protect all current Saudis; 0.0 = allow full reduction; in between = partial.
+  protect_current_saudi_percent: number | null;
   risk_factor: number;
   negotiated_rates: boolean;
   negotiated_insurance_cost: number;
@@ -120,7 +123,40 @@ export type TargetSplitResponse = {
   model_processing: Record<string, number | string | null>[];
 };
 
-export type AppStage = "home" | "upload" | "mappings" | "ready" | "results";
+export type AppStage =
+  | "home"
+  | "bu-selection"
+  | "upload"
+  | "mappings"
+  | "mode"
+  | "ready"
+  | "results";
+
+export type BusinessUnitCode =
+  | "MGIC"
+  | "UAAC"
+  | "FAST"
+  | "SACODECO"
+  | "SPHINX"
+  | "PREMCO_PRECAST"
+  | "PREMCO_READY_MIX"
+  | "BAHRA_STEEL"
+  | "UCC";
+
+export type BusinessUnit = {
+  code: BusinessUnitCode;
+  name: string;
+  logoSrc?: string;
+  active: boolean;
+};
+
+export type BUConfiguration = {
+  outsourceability_overrides: Record<string, string>;
+  ratio_overrides: Record<string, string>;
+  driver_overrides: Record<string, ActivityProfession[]>;
+  saudi_cost_premium: number | null;
+  outsource_cost_discount: number | null;
+};
 export type DetailTab = "insights" | "families" | "target" | "audit";
 
 export type AssumptionsCatalog = {

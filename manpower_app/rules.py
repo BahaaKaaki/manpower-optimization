@@ -60,3 +60,36 @@ MAXIMUM_RATIO_RULES = {
 # the non-HQ portion can be outsourced. If the projected total drops below the HQ count,
 # the family is fully in-house. See manpower_app.optimization._max_outsourced_allowed.
 HQ_FIXED_INHOUSE_FAMILIES = frozenset({"Clerk", "Controller"})
+
+
+_OUTSOURCEABILITY_VALUES = frozenset(
+    {"Fully Outsourceable", "Partially Outsourceable", "Not Outsourceable"}
+)
+
+
+def get_outsourceability_rules(overrides=None):
+    """Return the active outsourceability map, merging optional BU overrides over the
+    hardcoded defaults. Per Saad's batch-2 spec each Business Unit can override the
+    classification per family; an `overrides=None` call reproduces the legacy behavior.
+
+    Unknown families and invalid values in `overrides` are silently dropped so a stale
+    BU configuration cannot corrupt the in-process rule set."""
+    if not overrides:
+        return dict(OUTSOURCEABILITY_RULES)
+    merged = dict(OUTSOURCEABILITY_RULES)
+    for family, value in overrides.items():
+        if family in OUTSOURCEABILITY_RULES and value in _OUTSOURCEABILITY_VALUES:
+            merged[family] = value
+    return merged
+
+
+def get_maximum_ratio_rules(overrides=None):
+    """Return the active max-ratio map, merging optional BU overrides. Overrides keep
+    the existing 'N:M' string shape so downstream parsing in ratios.py is unchanged."""
+    if not overrides:
+        return dict(MAXIMUM_RATIO_RULES)
+    merged = dict(MAXIMUM_RATIO_RULES)
+    for family, value in overrides.items():
+        if family in MAXIMUM_RATIO_RULES and isinstance(value, str) and ":" in value:
+            merged[family] = value
+    return merged

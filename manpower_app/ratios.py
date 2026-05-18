@@ -179,7 +179,14 @@ def calculate_outsourced_v1(row, risk_factor):
     return min(total_headcount, max(0, outsourced_v1))
 
 
-def calculate_driver_values(mapped_workforce_df):
+def calculate_driver_values(mapped_workforce_df, driver_overrides=None):
+    """Compute the driver-headcount value used to derive minimum in-house counts.
+
+    `driver_overrides` is the batch-2 per-BU configuration field. It maps
+    `<supervisor family>` to a list of `{activity, profession}` dicts. When supplied
+    for a family, the row count is `len(rows where activity in ACTs and profession in PROFs)`
+    matching any of the entries. Families not in the override map fall back to the
+    hardcoded mapping that follows."""
     def count_rows(activity=None, professions=None, job_family=None, job_families=None):
         df = mapped_workforce_df
         if activity is not None:
@@ -191,6 +198,19 @@ def calculate_driver_values(mapped_workforce_df):
         if job_families is not None:
             df = df[df["Job_Family"].isin(job_families)]
         return int(len(df))
+
+    def count_from_override(entries):
+        df = mapped_workforce_df
+        if not entries:
+            return 0
+        activities = {e.get("activity") for e in entries if e.get("activity")}
+        professions = {e.get("profession") for e in entries if e.get("profession")}
+        subset = df
+        if activities:
+            subset = subset[subset["Activity_Standardized"].isin(activities)]
+        if professions:
+            subset = subset[subset["Profession_Standardized"].isin(professions)]
+        return int(len(subset))
 
     driver_values = {
         "Quarries Foreman": count_rows(
@@ -229,6 +249,10 @@ def calculate_driver_values(mapped_workforce_df):
     driver_values["Factory Supervisor"] = count_rows(
         activity="Factory", job_family="Production Foreman"
     )
+
+    if driver_overrides:
+        for family, entries in driver_overrides.items():
+            driver_values[family] = count_from_override(entries)
 
     return driver_values
 

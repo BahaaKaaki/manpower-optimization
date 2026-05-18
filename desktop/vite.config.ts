@@ -20,6 +20,7 @@ export default defineConfig({
       "/model": { target: API_TARGET, changeOrigin: true },
       "/optimization": { target: API_TARGET, changeOrigin: true },
       "/exports": { target: API_TARGET, changeOrigin: true },
+      "/bu": { target: API_TARGET, changeOrigin: true },
     },
   },
 });

@@ -4,7 +4,9 @@ const logoUrl = "/cpc-logo.png";
 
 const workflowSteps: { id: AppStage; label: string }[] = [
   { id: "home", label: "Home Page" },
+  { id: "bu-selection", label: "BU Selection" },
   { id: "upload", label: "Data Upload" },
+  { id: "mode", label: "Optimization Mode" },
   { id: "mappings", label: "Additional Inputs" },
   { id: "ready", label: "User Assumptions" },
   { id: "results", label: "Output" },
@@ -50,19 +52,31 @@ function ChevronRightIcon() {
   );
 }
 
-const STAGE_ORDER: AppStage[] = ["home", "upload", "mappings", "ready", "results"];
+const STAGE_ORDER: AppStage[] = [
+  "home",
+  "bu-selection",
+  "upload",
+  "mode",
+  "mappings",
+  "ready",
+  "results",
+];
 const STAGE_LABELS: Record<AppStage, string> = {
   home: "Home Page",
+  "bu-selection": "BU Selection",
   upload: "Data Upload",
   mappings: "Additional Inputs",
+  mode: "Optimization Mode",
   ready: "User Assumptions",
   results: "Output",
 };
 
 const stageTitles: Record<AppStage, { eyebrow: string }> = {
   home: { eyebrow: "Home Page" },
+  "bu-selection": { eyebrow: "BU Selection" },
   upload: { eyebrow: "Data Upload" },
   mappings: { eyebrow: "Additional Inputs" },
+  mode: { eyebrow: "Optimization Mode" },
   ready: { eyebrow: "User Assumptions" },
   results: { eyebrow: "Output" },
 };
@@ -233,7 +247,7 @@ function StageNav({
         <ChevronLeftIcon />
         <span className="stage-nav-text">
           <span className="stage-nav-eyebrow">Previous</span>
-          <span className="stage-nav-label">{prevStage ? STAGE_LABELS[prevStage] : "—"}</span>
+          <span className="stage-nav-label">{prevStage ? STAGE_LABELS[prevStage] : "None"}</span>
         </span>
       </button>
       <button
@@ -245,7 +259,7 @@ function StageNav({
       >
         <span className="stage-nav-text">
           <span className="stage-nav-eyebrow">Next</span>
-          <span className="stage-nav-label">{nextStage ? STAGE_LABELS[nextStage] : "—"}</span>
+          <span className="stage-nav-label">{nextStage ? STAGE_LABELS[nextStage] : "None"}</span>
         </span>
         <ChevronRightIcon />
       </button>

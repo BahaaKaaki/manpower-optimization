@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   CPC Workforce Studio — Design System
+   CPC Workforce Studio:Design System
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ── Section 1: Custom Properties ─────────────────────────────────── */
@@ -2959,7 +2959,7 @@ button, input, select {
   transform-origin: top right;
 }
 
-/* Payroll comparison (legacy — kept for reference) */
+/* Payroll comparison (legacy:kept for reference) */
 .payroll-comparison {
   display: flex;
   align-items: stretch;
@@ -4364,7 +4364,7 @@ tbody tr:hover td:first-child {
   color: var(--accent-600);
 }
 
-/* Wizard — refined to match the Plan step's design language */
+/* Wizard:refined to match the Plan step's design language */
 .wizard-card {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
@@ -4923,7 +4923,7 @@ tbody tr:hover td:first-child {
   }
 }
 
-/* Phase 8: action-bar polish — primary action gets a subtle accent shadow */
+/* Phase 8: action-bar polish:primary action gets a subtle accent shadow */
 .action-bar {
   display: flex;
   flex-wrap: wrap;
@@ -4936,7 +4936,7 @@ tbody tr:hover td:first-child {
   box-shadow: 0 4px 14px rgba(80, 156, 53, 0.18);
 }
 
-/* Phase 9: focus-visible audit — universal accent ring on focus for buttons */
+/* Phase 9: focus-visible audit:universal accent ring on focus for buttons */
 button:focus-visible,
 [role="button"]:focus-visible,
 [role="radio"]:focus-visible,
@@ -4949,4 +4949,1240 @@ textarea:focus-visible {
 /* Disabled rows: bump opacity from 0.5 to 0.6 for better contrast */
 .control-row--disabled {
   opacity: 0.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Batch 2 (150526 enhancements round 2):BU Selection, BU Configuration,
+   Mode step, Saudization captions, Family-mix legend, Map-to-existing.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* BU Selection */
+.bu-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.bu-selection-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bu-selection-parent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bu-selection-parent img {
+  width: 48px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.bu-selection-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 720px;
+  line-height: 1.5;
+}
+
+.bu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.bu-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--transition-fast),
+              box-shadow var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.bu-tile:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-500);
+}
+
+.bu-tile:focus-visible {
+  outline: 3px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+.bu-tile--unconfigured {
+  border-style: dashed;
+  border-color: var(--border-medium);
+  background: var(--bg-raised);
+}
+
+.bu-tile--unconfigured .bu-tile-status {
+  color: var(--text-secondary);
+}
+
+.bu-tile--selected {
+  border-color: var(--accent-600);
+  box-shadow: 0 0 0 2px var(--accent-100), var(--shadow-md);
+}
+
+.bu-tile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.bu-tile-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px 12px 18px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  flex: 1;
+  width: 100%;
+}
+
+.bu-tile-main:focus-visible {
+  outline: 3px solid var(--accent-500);
+  outline-offset: -3px;
+}
+
+.bu-tile-secondary {
+  border: none;
+  border-top: 1px solid var(--border-light);
+  padding: 8px 18px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-700);
+  cursor: pointer;
+  text-align: center;
+  transition: background var(--transition-fast);
+}
+
+.bu-tile-secondary:hover {
+  background: var(--accent-50);
+}
+
+.bu-selection-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* ── Configure-via-Excel section ──────────────────────────────────── */
+.bu-config-io {
+  /* Subtle green gradient evokes Excel without screaming it. */
+  background:
+    radial-gradient(circle at 0% 0%, rgba(80, 156, 53, 0.10), transparent 55%),
+    linear-gradient(180deg, var(--accent-50) 0%, #fbfdf9 100%);
+  border: 1px solid var(--accent-100);
+}
+
+.bu-config-io-head {
+  margin-bottom: 22px;
+  max-width: 720px;
+}
+
+.bu-config-io-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-700);
+  background: #fff;
+  border: 1px solid var(--accent-100);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  margin-bottom: 8px;
+}
+
+.bu-config-io-head h3 {
+  margin: 0 0 6px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.bu-config-io-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.bu-config-io-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: 22px 22px 18px 22px;
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.bu-config-io-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.bu-config-io-card-step {
+  position: absolute;
+  top: -11px;
+  left: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  background: var(--accent-700);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.bu-config-io-card-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+  background: var(--accent-50);
+  color: var(--accent-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bu-config-io-card-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.bu-config-io-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  width: 100%;
+}
+
+.bu-config-io-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.bu-config-io-card-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.bu-config-io-card-desc code {
+  background: var(--bg-raised);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.bu-config-io-card-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  cursor: pointer;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.bu-config-io-card-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.bu-config-io-card-btn--download {
+  background: var(--text-primary);
+  color: #fff;
+  border-color: var(--text-primary);
+}
+
+.bu-config-io-card-btn--download:hover {
+  background: #1d2433;
+  border-color: #1d2433;
+}
+
+.bu-config-io-card-btn--upload {
+  background: var(--accent-700);
+  color: #fff;
+  border-color: var(--accent-700);
+}
+
+/* Upload card behaves like a drop zone:dashed border, click-anywhere target,
+   visual feedback on drag. */
+.bu-config-io-card--upload {
+  cursor: pointer;
+  border-style: dashed;
+  border-color: var(--accent-100);
+}
+
+.bu-config-io-card--upload:hover,
+.bu-config-io-card--upload:focus-visible {
+  border-color: var(--accent-500);
+  background: linear-gradient(180deg, var(--accent-50) 0%, var(--bg-surface) 70%);
+  outline: none;
+}
+
+.bu-config-io-card--dragging {
+  border-color: var(--accent-600);
+  border-style: solid;
+  background: linear-gradient(180deg, var(--accent-100) 0%, var(--accent-50) 80%);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 4px var(--accent-100), var(--shadow-md);
+}
+
+.bu-config-io-card--dragging .bu-config-io-card-icon {
+  background: var(--accent-600);
+  color: #fff;
+  transform: scale(1.04);
+}
+
+@media (max-width: 760px) {
+  .bu-config-io-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bu-config-import-status {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.bu-config-import-status strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.bu-config-import-status ul {
+  margin: 6px 0 0 18px;
+  padding: 0;
+  font-size: 12px;
+}
+
+.bu-config-import-status--ok {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success);
+}
+
+.bu-config-import-status--error {
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+.bu-tile-logo {
+  flex: 0 0 88px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-raised);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.bu-tile-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.bu-tile-logo-fallback {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 4px 6px;
+  text-align: center;
+}
+
+.bu-tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.bu-tile-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.bu-tile-status {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.bu-tile--ready .bu-tile-status {
+  color: var(--color-success);
+}
+
+.bu-tile-configure {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-700);
+  background: var(--accent-50);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.bu-tile-configure:hover {
+  background: var(--accent-100);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BU Selection v2: polished hero + card grid (replaces .bu-tile)
+   ══════════════════════════════════════════════════════════════════ */
+
+.bu-selection-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 22px;
+  background:
+    radial-gradient(circle at 0% 100%, rgba(80, 156, 53, 0.10), transparent 55%),
+    linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+
+.bu-selection-hero-mark {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  box-shadow: var(--shadow-sm);
+}
+
+.bu-selection-hero-mark img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.bu-selection-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bu-selection-hero-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-700);
+}
+
+.bu-selection-hero-text h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.bu-selection-hero-text p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  max-width: 640px;
+}
+
+/* Card grid: 9 BUs in a clean 3×3 on desktop, 2-col on tablet, 1-col on phone */
+.bu-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 1100px) {
+  .bu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .bu-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bu-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  position: relative;
+  isolation: isolate;
+  box-shadow: var(--shadow-sm);
+  /* Stagger fade-up on mount; animationDelay is set inline per index. */
+  opacity: 0;
+  animation: bu-card-enter 420ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  transition:
+    transform 240ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 240ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color var(--transition-fast);
+}
+
+@keyframes bu-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.bu-card::before {
+  /* Soft ambient glow that appears on hover behind the card. */
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 0%, rgba(80, 156, 53, 0.18), transparent 70%);
+  opacity: 0;
+  transition: opacity 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.bu-card:hover:not(:disabled) {
+  transform: translateY(-5px);
+  box-shadow:
+    0 18px 36px rgba(14, 20, 32, 0.10),
+    0 4px 8px rgba(14, 20, 32, 0.05);
+  border-color: var(--accent-500);
+}
+
+.bu-card:hover::before {
+  opacity: 1;
+}
+
+.bu-card:active:not(:disabled) {
+  transform: translateY(-2px) scale(0.995);
+  transition-duration: 80ms;
+}
+
+.bu-card:focus-visible {
+  outline: 3px solid var(--accent-500);
+  outline-offset: 3px;
+}
+
+.bu-card--selected {
+  border-color: var(--accent-600);
+  box-shadow: 0 0 0 2px var(--accent-100), var(--shadow-md);
+}
+
+/* Animated top rail — collapses to a thin static line, grows on hover */
+.bu-card-rail {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--border-medium);
+  transform-origin: left center;
+  transition: background 220ms ease, transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 1;
+}
+
+.bu-card--custom .bu-card-rail {
+  background: linear-gradient(90deg, var(--accent-600), var(--accent-400));
+}
+
+.bu-card:hover .bu-card-rail {
+  transform: scaleY(1.6);
+}
+
+/* Floating status row at the top of each card */
+.bu-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 10px 14px 0 14px;
+}
+
+.bu-card-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bu-card-status-dot--custom {
+  background: var(--accent-600);
+  box-shadow: 0 0 0 2.5px var(--accent-100);
+}
+
+.bu-card-status-dot--defaults {
+  background: var(--text-faint);
+}
+
+/* Logo area: compact but generous enough to make the brand readable */
+.bu-card-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88px;
+  margin: 8px 14px 4px 14px;
+  padding: 10px;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.95) 0%, var(--bg-raised) 100%);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+  transition: background 220ms ease, border-color 220ms ease;
+}
+
+.bu-card:hover .bu-card-logo {
+  background:
+    radial-gradient(circle at center, #ffffff 0%, #f5f9f3 100%);
+  border-color: var(--accent-100);
+}
+
+.bu-card-logo img {
+  max-width: 88%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1),
+              filter 320ms ease;
+}
+
+.bu-card:hover .bu-card-logo img {
+  transform: scale(1.05);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
+}
+
+/* Placeholder until proper brand assets land. Pure typography, no patterns, so
+   the card reads as deliberate rather than "missing image". */
+.bu-card-logo-placeholder-code {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1;
+}
+
+/* Body: code + name (compact, name clamped to one line w/ ellipsis) */
+.bu-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 14px 10px 14px;
+  flex: 1;
+}
+
+.bu-card-code {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-700);
+}
+
+.bu-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Footer: CTA + animated arrow (slim) */
+.bu-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: var(--bg-raised);
+  border-top: 1px solid var(--border-light);
+}
+
+.bu-card-cta {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.bu-card-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: 50%;
+  color: var(--accent-700);
+  transition:
+    transform var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.bu-card-arrow svg {
+  width: 12px;
+  height: 12px;
+}
+
+.bu-card:hover .bu-card-arrow {
+  transform: translateX(4px);
+  background: var(--accent-700);
+  color: #fff;
+  border-color: var(--accent-700);
+}
+
+@media (max-width: 720px) {
+  .bu-selection-hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .bu-selection-hero-mark {
+    margin: 0 auto;
+  }
+  .bu-selection-hero-stat {
+    align-items: center;
+    width: 100%;
+  }
+}
+
+/* BU Configuration panel */
+.bu-config-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.bu-config-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.bu-config-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-700);
+  margin-bottom: 4px;
+}
+
+.bu-config-head h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.bu-config-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.bu-config-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.bu-config-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+}
+
+.bu-config-section h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+
+.bu-config-section-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.bu-config-table-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.bu-config-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.bu-config-table th,
+.bu-config-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.bu-config-table thead th {
+  background: var(--bg-raised);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  position: sticky;
+  top: 0;
+}
+
+.bu-config-default {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.bu-config-active {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bu-config-active--overridden {
+  color: var(--accent-800);
+}
+
+.bu-config-override-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--accent-100);
+  color: var(--accent-800);
+  border-radius: var(--radius-full);
+}
+
+.bu-config-knob--readonly {
+  background: var(--bg-raised);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  gap: 4px;
+}
+
+.bu-config-knob--readonly span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.bu-config-knob--readonly strong {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.bu-config-empty {
+  border-style: dashed;
+  background: var(--bg-raised);
+  text-align: center;
+  padding: 28px 20px;
+  color: var(--text-secondary);
+}
+
+.bu-config-empty strong {
+  display: block;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.bu-config-empty-row {
+  text-align: center;
+  font-style: italic;
+  color: var(--text-muted);
+  padding: 16px;
+}
+
+/* ── Sticky section navigator inside the Configuration panel ─────── */
+.bu-config-toc {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(246, 247, 249, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+}
+
+.bu-config-toc-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-right: 4px;
+}
+
+.bu-config-toc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 7px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color var(--transition-fast),
+              color var(--transition-fast),
+              background var(--transition-fast),
+              transform var(--transition-fast);
+}
+
+.bu-config-toc-chip:hover,
+.bu-config-toc-chip:focus-visible {
+  border-color: var(--accent-500);
+  color: var(--accent-800);
+  background: var(--accent-50);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.bu-config-toc-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--accent-700);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.bu-config-toc-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 1px 6px;
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Section number badge embedded in the h3:visually pairs with the TOC chip */
+.bu-config-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bu-config-section-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-100);
+  color: var(--accent-800);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.bu-config-section-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-raised);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+/* Anchor jumps land below the sticky TOC instead of behind it */
+.bu-config-section[id] {
+  scroll-margin-top: 90px;
+}
+
+/* Smooth scroll for hash-link navigation */
+html {
+  scroll-behavior: smooth;
+}
+
+.bu-config-table select,
+.bu-config-table input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--bg-surface);
+}
+
+.bu-config-knobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.bu-config-knob {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.bu-config-knob input {
+  padding: 6px 10px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.bu-config-loading,
+.bu-config-error {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+}
+
+.bu-config-error {
+  color: var(--color-danger);
+}
+
+/* Mode step */
+.mode-step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mode-step-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 720px;
+  line-height: 1.55;
+}
+
+.mode-step-cta {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+/* Mode pill (assumptions step indicator) */
+.mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--accent-50);
+  border: 1px solid var(--accent-100);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.mode-pill-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.mode-pill-value {
+  color: var(--accent-800);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.mode-pill-hint {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 11px;
+}
+
+/* Output: pre/post Saudization caption under donuts */
+.output-breakdown-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.output-saudization-caption {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.output-saudization-caption strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+/* Output: family-mix legend (IS / IN / O) */
+.family-mix-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--bg-raised);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.family-mix-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.family-mix-legend-item strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.family-mix-legend-swatch {
+  width: 18px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Mapping: map-to-existing-family inline picker */
+.mapping-map-to-existing {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.mapping-map-to-existing-label {
+  font-style: italic;
+}
+
+.mapping-map-to-existing select {
+  padding: 6px 10px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--bg-surface);
+  min-width: 200px;
 }

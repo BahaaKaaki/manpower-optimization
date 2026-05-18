@@ -52,12 +52,27 @@ def _minimum_inhouse_required(row):
     return min(total_headcount, max(0, minimum_inhouse))
 
 
-def _saudi_lower_bound(row, *, can_reduce_current_saudi, tenure_constraint_active):
+def _saudi_lower_bound(
+    row,
+    *,
+    can_reduce_current_saudi,
+    tenure_constraint_active,
+    protect_current_saudi_percent=None,
+):
+    """Lower bound for in-house Saudi count per family.
+
+    `protect_current_saudi_percent` (0.0–1.0) is the dynamic-protection field added in
+    batch 2 — when supplied it takes precedence over the legacy boolean. The bool path
+    is preserved for Streamlit and back-compat callers."""
     current_saudi = int(safe_numeric(row.get("Current Total In-house Saudi")))
     tenured_saudi = (
         int(safe_numeric(row.get("Tenured Saudi In-House"))) if tenure_constraint_active else 0
     )
-    floor_from_current = 0 if can_reduce_current_saudi else current_saudi
+    if protect_current_saudi_percent is not None:
+        pct = max(0.0, min(1.0, safe_numeric(protect_current_saudi_percent)))
+        floor_from_current = int(round(current_saudi * pct))
+    else:
+        floor_from_current = 0 if can_reduce_current_saudi else current_saudi
     return max(floor_from_current, tenured_saudi)
 
 
@@ -102,6 +117,7 @@ def solve_optimization(
     can_reduce_current_saudi,
     tenure_constraint_active,
     profession_saudization_rates,
+    protect_current_saudi_percent=None,
 ):
     """Solve the manpower optimization LP and write final headcount columns onto ``data``.
 
@@ -135,6 +151,7 @@ def solve_optimization(
             row,
             can_reduce_current_saudi=can_reduce_current_saudi,
             tenure_constraint_active=tenure_constraint_active,
+            protect_current_saudi_percent=protect_current_saudi_percent,
         )
         non_saudi_lb = _non_saudi_lower_bound(row, tenure_constraint_active=tenure_constraint_active)
 

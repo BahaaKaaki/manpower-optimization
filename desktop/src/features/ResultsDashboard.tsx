@@ -154,7 +154,7 @@ function JobFamilyDrilldowns({ rows }: { rows: Record<string, unknown>[] }) {
 function clientOptimizationStatusLabel(raw: string): string {
   const s = raw.trim();
   if (s === "Matches v4") return "Within prior guardrails";
-  return s || "—";
+  return s || "Not run yet";
 }
 
 function BaselineVsFinalPayroll({
@@ -187,7 +187,7 @@ function BaselineVsFinalPayroll({
               style={{ width: `${Math.max(4, baselinePct)}%` }}
             />
           </div>
-          <span className="payroll-compare-value">{current ? formatCompactCurrency(current) : "—"}</span>
+          <span className="payroll-compare-value">{current ? formatCompactCurrency(current) : "n/a"}</span>
         </div>
         <div className="payroll-compare-row">
           <span className="payroll-compare-label">Optimized</span>
@@ -277,10 +277,12 @@ function FamilyMixBar({
   total: number;
 }) {
   const denominator = Math.max(total, saudi + nonSaudi + outsourced, 1);
+  // Bar segments use short codes (IS / IN / O) so the value fits even at narrow widths.
+  // The full names live in the legend rendered above the bar group.
   const segments = [
-    { key: "saudi", label: "Saudi", shortLabel: "Saudi", value: saudi },
-    { key: "non-saudi", label: "Non-Saudi", shortLabel: "Non-Saudi", value: nonSaudi },
-    { key: "outsourced", label: "Outsourced", shortLabel: "Outs.", value: outsourced },
+    { key: "saudi", code: "IS", longLabel: "In-house Saudis", value: saudi },
+    { key: "non-saudi", code: "IN", longLabel: "In-house Non-Saudis", value: nonSaudi },
+    { key: "outsourced", code: "O", longLabel: "Outsourced", value: outsourced },
   ];
 
   return (
@@ -290,17 +292,13 @@ function FamilyMixBar({
         {segments.map((segment) => {
           const pct = segment.value > 0 ? (segment.value / denominator) * 100 : 0;
           const value = formatNumber(segment.value, 0);
-          const text = pct >= 18
-            ? `${value} ${segment.label}`
-            : pct >= 8
-              ? `${value} ${segment.shortLabel}`
-              : value;
+          const text = pct >= 10 ? `${value} ${segment.code}` : value;
 
           return (
             <i
               key={segment.key}
               className={`family-mix-bar-segment family-mix-bar-segment--${segment.key}`}
-              title={`${label} ${segment.label}: ${value}`}
+              title={`${label} ${segment.longLabel}: ${value}`}
               style={{ width: `${segment.value > 0 ? Math.max(2, pct) : 0}%` }}
             >
               {segment.value > 0 ? <span>{text}</span> : null}
@@ -309,6 +307,27 @@ function FamilyMixBar({
         })}
       </span>
     </span>
+  );
+}
+
+function FamilyMixLegend() {
+  // Short codes used inside bar segments; the legend explains them once at the top of
+  // the recommendations list so each bar can stay compact (Saad's batch-2 ask).
+  return (
+    <div className="family-mix-legend" aria-label="Bar legend">
+      <span className="family-mix-legend-item">
+        <i className="family-mix-bar-segment family-mix-bar-segment--saudi family-mix-legend-swatch" />
+        <strong>IS</strong> In-house Saudis
+      </span>
+      <span className="family-mix-legend-item">
+        <i className="family-mix-bar-segment family-mix-bar-segment--non-saudi family-mix-legend-swatch" />
+        <strong>IN</strong> In-house Non-Saudis
+      </span>
+      <span className="family-mix-legend-item">
+        <i className="family-mix-bar-segment family-mix-bar-segment--outsourced family-mix-legend-swatch" />
+        <strong>O</strong> Outsourced
+      </span>
+    </div>
   );
 }
 
@@ -335,6 +354,7 @@ function FamilyRecommendations({
 
   return (
     <div className="family-recommendations">
+      <FamilyMixLegend />
       {results.map((row) => {
         const family = getString(row, "Job Family") || "Job family";
         const modelRow = (modelByFamily.get(family) ?? {}) as Record<string, unknown>;
@@ -551,23 +571,39 @@ export function ResultsDashboard({
         </div>
 
         <div className="output-breakdown-grid">
-          <DonutChart
-            title="Current Manpower Breakdown"
-            subtitle="Current"
-            centerValue={formatNumber(currentEmployees, 0)}
-            centerLabel="Total"
-            items={currentHeadcountChartItems}
-            tooltipValueFormatter={(value) => formatNumber(value, 0)}
-          />
+          <div className="output-breakdown-col">
+            <DonutChart
+              title="Current Manpower Breakdown"
+              subtitle="Current"
+              centerValue={formatNumber(currentEmployees, 0)}
+              centerLabel="Total"
+              items={currentHeadcountChartItems}
+              tooltipValueFormatter={(value) => formatNumber(value, 0)}
+            />
+            {!isTargetMode ? (
+              <div className="output-saudization-caption">
+                Current Saudization:&nbsp;
+                <strong>{formatPercent(currentSaudi / Math.max(currentEmployees, 1))}</strong>
+              </div>
+            ) : null}
+          </div>
           <div className="output-breakdown-arrow" aria-hidden>→</div>
-          <DonutChart
-            title="Optimized Manpower Breakdown"
-            subtitle="Optimized"
-            centerValue={formatNumber(totalEmployees, 0)}
-            centerLabel="Total"
-            items={optimizedHeadcountChartItems}
-            tooltipValueFormatter={(value) => formatNumber(value, 0)}
-          />
+          <div className="output-breakdown-col">
+            <DonutChart
+              title="Optimized Manpower Breakdown"
+              subtitle="Optimized"
+              centerValue={formatNumber(totalEmployees, 0)}
+              centerLabel="Total"
+              items={optimizedHeadcountChartItems}
+              tooltipValueFormatter={(value) => formatNumber(value, 0)}
+            />
+            {!isTargetMode ? (
+              <div className="output-saudization-caption">
+                Optimized Saudization:&nbsp;
+                <strong>{formatPercent(totalSaudi / Math.max(totalEmployees, 1))}</strong>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 

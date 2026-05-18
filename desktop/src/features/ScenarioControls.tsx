@@ -195,7 +195,13 @@ function NumericTextInput({
   );
 }
 
-type AccordionId = "saudization" | "outsourced" | "protection" | "target" | "hard";
+type AccordionId =
+  | "saudization"
+  | "outsourced"
+  | "protection"
+  | "target"
+  | "hard"
+  | "engine-config";
 
 function InfoIcon({ title }: { title: string }) {
   // Lightweight (!) icon with a native title= tooltip. Sufficient for a single
@@ -314,95 +320,15 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
     onUpdate("target_headcounts", next);
   }
 
-  function setMode(mode: Settings["optimization_mode"]) {
-    onUpdate("optimization_mode", mode);
-    setOpenSections((current) => {
-      const next = new Set(current);
-      if (mode === "target") next.add("target");
-      else next.delete("target");
-      return next;
-    });
-  }
-
   return (
     <>
-      <section className="mode-panel">
-        <SectionHeader title="Optimization Mode" />
-
-        <div className="mode-card-grid" role="radiogroup" aria-label="Optimization mode">
-          <button
-            type="button"
-            className={`mode-card${!isTargetMode ? " mode-card--active" : ""}`}
-            role="radio"
-            aria-checked={!isTargetMode}
-            onClick={() => setMode("current")}
-          >
-            <span className="mode-card-icon" aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M3 20V11.5L12 4l9 7.5V20H14v-6h-4v6H3Z"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-            <span className="mode-card-text">
-              <span className="mode-card-title">Optimize Current Manpower</span>
-              <span className="mode-card-desc">
-                Keep today's headcount. Find the best in house and outsourced mix to lower payroll cost.
-              </span>
-            </span>
-            <span className="mode-card-check" aria-hidden>
-              <svg viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
-                <path
-                  d="M5 8.4L7.1 10.5L11 6.5"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className={`mode-card${isTargetMode ? " mode-card--active" : ""}`}
-            role="radio"
-            aria-checked={isTargetMode}
-            onClick={() => setMode("target")}
-          >
-            <span className="mode-card-icon" aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" />
-                <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.6" />
-                <circle cx="12" cy="12" r="1.4" fill="currentColor" />
-              </svg>
-            </span>
-            <span className="mode-card-text">
-              <span className="mode-card-title">Input and Optimize a Target Manpower Plan</span>
-              <span className="mode-card-desc">
-                Type the headcount you want per job family. The tool plans the cheapest way to get there.
-              </span>
-            </span>
-            <span className="mode-card-check" aria-hidden>
-              <svg viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
-                <path
-                  d="M5 8.4L7.1 10.5L11 6.5"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-          </button>
-        </div>
-      </section>
+      <div className="mode-pill" role="status">
+        <span className="mode-pill-label">Mode:</span>
+        <strong className="mode-pill-value">
+          {isTargetMode ? "Target Manpower Plan" : "Optimize Current Manpower"}
+        </strong>
+        <span className="mode-pill-hint">Change on the Optimization Mode step.</span>
+      </div>
 
       <section className="controls-panel">
         <SectionHeader title="Inputs" />
@@ -428,17 +354,8 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                     min={0}
                     max={1}
                     value={settings.saudization_rate}
+                    disabled={!settings.enforce_saudization}
                     onChange={(value) => onUpdate("saudization_rate", value)}
-                  />
-                  <NumberField
-                    label="Saudi cost premium"
-                    hint="Saudi in-house cost as a multiple of non-Saudi in-house cost. Floored at 1.0× so Saudis cannot be cheaper than non-Saudis."
-                    min={1}
-                    max={3}
-                    step={0.05}
-                    value={settings.saudi_cost_premium}
-                    suffix="× non-Saudi"
-                    onChange={(value) => onUpdate("saudi_cost_premium", value)}
                   />
                 </FieldStack>
               </div>
@@ -515,24 +432,6 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                     suffix="SAR"
                     onChange={(value) => onUpdate("negotiated_service_margin", value)}
                   />
-                  <hr className="control-divider" />
-                  <ToggleField
-                    label="Override outsource cost"
-                    hint="When on, outsource cost is set as a fraction of non-Saudi in-house cost (replaces the workbook value)."
-                    checked={settings.outsource_cost_discount !== null}
-                    onChange={(value) =>
-                      onUpdate("outsource_cost_discount", value ? 0.2 : (null as unknown as number))
-                    }
-                  />
-                  <NumberField
-                    label="Outsource discount vs non-Saudi"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={settings.outsource_cost_discount ?? 0}
-                    disabled={settings.outsource_cost_discount === null}
-                    onChange={(value) => onUpdate("outsource_cost_discount", value)}
-                  />
                 </FieldStack>
               </div>
             </div>
@@ -548,9 +447,26 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
               <FieldStack>
                 <ToggleField
                   label="Protect Current Saudis"
-                  hint="On by default: existing Saudi employees can't be reduced by the optimizer."
-                  checked={!settings.can_reduce_current_saudi}
-                  onChange={(value) => onUpdate("can_reduce_current_saudi", !value)}
+                  hint="On: optimizer cannot reduce current Saudis. Set the % below to protect a fraction instead of all."
+                  checked={(settings.protect_current_saudi_percent ?? 1) > 0}
+                  onChange={(value) => {
+                    onUpdate("protect_current_saudi_percent", value ? 1 : 0);
+                    onUpdate("can_reduce_current_saudi", !value);
+                  }}
+                />
+                <NumberField
+                  label="Protection level"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={Math.round(((settings.protect_current_saudi_percent ?? 1) * 100))}
+                  disabled={(settings.protect_current_saudi_percent ?? 1) <= 0}
+                  suffix="% of current Saudis"
+                  onChange={(value) => {
+                    const pct = Math.max(0, Math.min(100, value)) / 100;
+                    onUpdate("protect_current_saudi_percent", pct);
+                    onUpdate("can_reduce_current_saudi", pct <= 0);
+                  }}
                 />
                 <ToggleField
                   label="Protect tenured employees"
@@ -583,7 +499,7 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                 Type target headcount per family.
               </p>
               {allFamilyNames.length === 0 ? (
-                <p className="mapping-empty">No families yet — upload a workbook first.</p>
+                <p className="mapping-empty">No families yet. Upload a workbook first.</p>
               ) : (
                 <table className="target-headcount-table">
                   <thead>
@@ -626,16 +542,40 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
 
         <div className="advanced-settings-block">
           <AccordionSection
-            id="hard"
-            title="Hard Inputs"
-            subtitle="Supervisor:worker ratios"
-            isOpen={openSections.has("hard")}
+            id="engine-config"
+            title="Cost configuration"
+            subtitle="Pay premium and outsource cost override applied to this scenario."
+            isOpen={openSections.has("engine-config")}
             onToggle={toggleSection}
           >
             <FieldStack>
-              <RatioOverrideEditor
-                overrides={settings.max_ratio_overrides}
-                onUpdate={(next) => onUpdate("max_ratio_overrides", next)}
+              <NumberField
+                label="Saudi pay premium"
+                hint="How much more Saudi employees cost than non-Saudis (e.g. 1.10 = 10% more). Cannot go below 1.0."
+                min={1}
+                max={3}
+                step={0.05}
+                value={settings.saudi_cost_premium}
+                suffix="× non-Saudi"
+                onChange={(value) => onUpdate("saudi_cost_premium", value)}
+              />
+              <hr className="control-divider" />
+              <ToggleField
+                label="Override outsource cost"
+                hint="When on, outsource cost is set as a fraction of non-Saudi in-house cost."
+                checked={settings.outsource_cost_discount !== null}
+                onChange={(value) =>
+                  onUpdate("outsource_cost_discount", value ? 0.2 : (null as unknown as number))
+                }
+              />
+              <NumberField
+                label="Outsource discount vs non-Saudi"
+                min={0}
+                max={1}
+                step={0.05}
+                value={settings.outsource_cost_discount ?? 0}
+                disabled={settings.outsource_cost_discount === null}
+                onChange={(value) => onUpdate("outsource_cost_discount", value)}
               />
             </FieldStack>
           </AccordionSection>
