@@ -4,26 +4,29 @@ import type { BusinessUnit, BusinessUnitCode } from "../types";
 import { persistGet } from "../utils/persistence";
 
 import cpcHolding from "../assets/bu-logos/cpc-holding.png";
+import mgicLogo from "../assets/bu-logos/mgic.png";
+import uaacLogo from "../assets/bu-logos/uaac.png";
+import fastLogo from "../assets/bu-logos/fast.png";
+import sacodecoLogo from "../assets/bu-logos/sacodeco.png";
+import sphinxLogo from "../assets/bu-logos/sphinx-glass.png";
+import premcoPrecastLogo from "../assets/bu-logos/premco-precast.png";
+import premcoReadyMixLogo from "../assets/bu-logos/premco-ready-mix.png";
+import bahraSteelLogo from "../assets/bu-logos/bahra-steel.png";
+import uccLogo from "../assets/bu-logos/ucc.png";
 
 // `active` here is the *seeded* state. MGIC ships configured by default. At runtime
 // any BU with a saved `bu:<code>:configuration` in local persistence is also treated
 // as configured (see configuredBUs state below).
-//
-// Logos are intentionally OMITTED for now — every BU renders a typographic placeholder
-// until proper brand assets are dropped into `desktop/src/assets/bu-logos/` with the
-// expected filenames (mgic.png, uaac.png, fast.png, sacodeco.png, sphinx-glass.png,
-// premco-precast.png, premco-ready-mix.png, bahra-steel.png, ucc.png). Add the import
-// and the `logoSrc` field below to wire any new asset in.
 export const BUSINESS_UNITS: BusinessUnit[] = [
-  { code: "MGIC", name: "Marble & Granite International Company", active: true },
-  { code: "UAAC", name: "United Arab Aluminium Company", active: false },
-  { code: "FAST", name: "FAST Waterproofing", active: false },
-  { code: "SACODECO", name: "SACODECO Woodwork", active: false },
-  { code: "SPHINX", name: "Sphinx Glass", active: false },
-  { code: "PREMCO_PRECAST", name: "Premco Precast", active: false },
-  { code: "PREMCO_READY_MIX", name: "Premco Ready Mix", active: false },
-  { code: "BAHRA_STEEL", name: "Bahra Steel", active: false },
-  { code: "UCC", name: "UCC", active: false },
+  { code: "MGIC", name: "Marble & Granite International Company", logoSrc: mgicLogo, active: true },
+  { code: "UAAC", name: "United Arab Aluminium Company", logoSrc: uaacLogo, active: false },
+  { code: "FAST", name: "FAST Waterproofing", logoSrc: fastLogo, active: false },
+  { code: "SACODECO", name: "SACODECO Woodwork", logoSrc: sacodecoLogo, active: false },
+  { code: "SPHINX", name: "Sphinx Glass", logoSrc: sphinxLogo, active: false },
+  { code: "PREMCO_PRECAST", name: "Premco Precast", logoSrc: premcoPrecastLogo, active: false },
+  { code: "PREMCO_READY_MIX", name: "Premco Ready Mix", logoSrc: premcoReadyMixLogo, active: false },
+  { code: "BAHRA_STEEL", name: "Bahra Steel", logoSrc: bahraSteelLogo, active: false },
+  { code: "UCC", name: "UCC Steel Structures", logoSrc: uccLogo, active: false },
 ];
 
 type Props = {
