@@ -12,14 +12,19 @@ import {
 } from "./api/client";
 import { AppShell, type StageBadge } from "./features/AppShell";
 import { AssumptionsPanel } from "./features/AssumptionsPanel";
+import { BUConfigurationPanel } from "./features/BUConfigurationPanel";
+import { BUSelectionWorkspace, BUSINESS_UNITS } from "./features/BUSelectionWorkspace";
 import { HomePage } from "./features/HomePage";
 import { MappingResolveWorkspace } from "./features/MappingResolveWorkspace";
+import { ModeSelectionWorkspace } from "./features/ModeSelectionWorkspace";
 import { ResultsDashboard } from "./features/ResultsDashboard";
 import { ScenarioControls } from "./features/ScenarioControls";
 import { UploadWorkspace } from "./features/UploadWorkspace";
 import type {
   ActivityProfession,
   AppStage,
+  BUConfiguration,
+  BusinessUnitCode,
   BusyAction,
   CustomFamilySpec,
   DetailTab,
@@ -28,12 +33,39 @@ import type {
   UnmappedPair,
   UploadResponse,
 } from "./types";
+
+async function mergeActiveBUConfiguration(
+  settings: Settings,
+  activeBU: BusinessUnitCode | null,
+): Promise<Settings> {
+  if (!activeBU) return settings;
+  const config = await persistGet<BUConfiguration | null>(`bu:${activeBU}:configuration`, null);
+  if (!config) return settings;
+  return {
+    ...settings,
+    saudi_cost_premium: config.saudi_cost_premium ?? settings.saudi_cost_premium,
+    outsource_cost_discount:
+      config.outsource_cost_discount !== undefined && config.outsource_cost_discount !== null
+        ? config.outsource_cost_discount
+        : settings.outsource_cost_discount,
+    max_ratio_overrides: { ...settings.max_ratio_overrides, ...config.ratio_overrides },
+    // The override fields below are not in the Settings type today; they ride along as
+    // properties the API request shape (manpower_api/app.py) accepts directly.
+    outsourceability_overrides: config.outsourceability_overrides,
+    driver_overrides: config.driver_overrides,
+  } as Settings & {
+    outsourceability_overrides: Record<string, string>;
+    driver_overrides: Record<string, { activity: string; profession: string }[]>;
+  };
+}
 import { persistGet, persistSet } from "./utils/persistence";
 
 const defaultSettings: Settings = {
   enforce_saudization: true,
   saudization_rate: 0.3,
   can_reduce_current_saudi: false,
+  // Default 1.0 = "Protect all current Saudis" (matches today's UX when the toggle is on).
+  protect_current_saudi_percent: 1.0,
   risk_factor: 0.25,
   negotiated_rates: false,
   negotiated_insurance_cost: 0,
@@ -75,6 +107,9 @@ export default function App() {
   const [debugEnabled] = useState(isDebugEnabled);
   const [unmappedPairs, setUnmappedPairs] = useState<UnmappedPair[]>([]);
   const [workbookPairs, setWorkbookPairs] = useState<ActivityProfession[]>([]);
+  const [activeBU, setActiveBU] = useState<BusinessUnitCode | null>(null);
+  const [payrollPairOverrides, setPayrollPairOverrides] = useState<Record<string, string>>({});
+  const [configuringBU, setConfiguringBU] = useState<BusinessUnitCode | null>(null);
 
   // Hydrate persisted custom_families on boot. Until the persistence layer reports back,
   // settings.custom_families is empty (the default). After hydration, any prior session's
@@ -85,6 +120,16 @@ export default function App() {
       if (cancelled || stored.length === 0) return;
       setSettings((current) => ({ ...current, custom_families: stored }));
     });
+    void persistGet<BusinessUnitCode | null>("active_bu", null).then((stored) => {
+      if (cancelled || !stored) return;
+      setActiveBU(stored);
+    });
+    void persistGet<Record<string, string>>("payroll_pair_overrides", {}).then((stored) => {
+      if (cancelled || Object.keys(stored).length === 0) return;
+      setPayrollPairOverrides(stored);
+    });
+    // MGIC's seed happens inside BUConfigurationPanel the first time it opens,
+    // so the seed and the read don't race each other.
     return () => {
       cancelled = true;
     };
@@ -96,17 +141,27 @@ export default function App() {
     void persistSet("custom_families", settings.custom_families);
   }, [settings.custom_families]);
 
+  useEffect(() => {
+    if (activeBU) void persistSet("active_bu", activeBU);
+  }, [activeBU]);
+
+
   const allMappingsResolved = unmappedPairs.length === 0;
 
   const reachableStages = useMemo<Set<AppStage>>(() => {
-    const reachable = new Set<AppStage>(["home", "upload"]);
-    if (uploadInfo) reachable.add("mappings");
-    // Downstream stages stay blocked until every unmapped (activity, profession) pair has
-    // a resolution. The user must visit the Job Families step to unblock optimization.
+    const reachable = new Set<AppStage>(["home", "bu-selection"]);
+    if (activeBU) reachable.add("upload");
+    // Mode comes BEFORE mappings: once the workbook is loaded the user picks current vs
+    // target, then mappings shows the "+ Add Job Family" affordance in target mode without
+    // making the user jump back a step (Saad's workbook note).
+    if (uploadInfo) {
+      reachable.add("mode");
+      reachable.add("mappings");
+    }
     if (uploadInfo && allMappingsResolved) reachable.add("ready");
     if (allMappingsResolved && optimization) reachable.add("results");
     return reachable;
-  }, [uploadInfo, optimization, allMappingsResolved]);
+  }, [activeBU, uploadInfo, optimization, allMappingsResolved]);
 
   // Stage to display = user's selection when its data is still present, otherwise the
   // highest reachable stage. Lets the user navigate freely between any stage that has
@@ -116,8 +171,9 @@ export default function App() {
     if (allMappingsResolved && optimization) return "results";
     if (uploadInfo && allMappingsResolved) return "ready";
     if (uploadInfo) return "mappings";
-    return "upload";
-  }, [activeStage, reachableStages, optimization, uploadInfo, allMappingsResolved]);
+    if (activeBU) return "upload";
+    return "bu-selection";
+  }, [activeStage, reachableStages, optimization, uploadInfo, allMappingsResolved, activeBU]);
 
   // Per-step badges: surface real state in the sidebar (filename / unmapped count /
   // current vs target mode / optimization status) so the user can read progress at a
@@ -153,8 +209,19 @@ export default function App() {
       }
     }
 
+    if (activeBU) {
+      const bu = BUSINESS_UNITS.find((b) => b.code === activeBU);
+      if (bu) badges["bu-selection"] = { label: bu.code.replace(/_/g, " "), tone: "positive" };
+    } else {
+      badges["bu-selection"] = { label: "Select a BU", tone: "warning" };
+    }
+
     if (uploadInfo) {
       if (allMappingsResolved) {
+        badges.mode = {
+          label: settings.optimization_mode === "target" ? "Target plan" : "Current",
+          tone: settings.optimization_mode === "target" ? "info" : "neutral",
+        };
         badges.ready = {
           label: settings.optimization_mode === "target" ? "Target plan" : "Current",
           tone: settings.optimization_mode === "target" ? "info" : "neutral",
@@ -187,6 +254,7 @@ export default function App() {
     optimization,
     settings.optimization_mode,
     settings.custom_families.length,
+    activeBU,
   ]);
 
   useEffect(() => {
@@ -270,12 +338,12 @@ export default function App() {
       setOptimization(null);
       setRestoredOptimization(null);
       setDetailTab("insights");
-      // Always land on the Families step so the user sees the resolution surface and can
-      // add custom families for target-mode planning even when the workbook is fully mapped.
-      // If there are unmapped pairs, the step naturally pulls attention to them; if not, the
-      // user can move to Plan with one click.
+      // Land on the Mode step first so the user picks current vs target before they
+      // see the mapping/families surface. If they want target mode, the Mappings step
+      // will then show the "+ Add Job Family" affordance without needing to backtrack
+      // (Saad's workbook note on the bad UX of jumping back).
       const unresolved = payload.unmapped_pairs?.length ?? 0;
-      setActiveStage("mappings");
+      setActiveStage("mode");
       if (unresolved > 0) {
         setStatus(`${unresolved} unmapped role${unresolved === 1 ? "" : "s"} need attention`);
       } else {
@@ -293,7 +361,7 @@ export default function App() {
     await withBusy("mappings", async () => {
       setSettings((current) => ({ ...current, custom_families: updatedFamilies }));
       setStatus("Re-processing workbook with updated mappings...");
-      const payload = await reprocessWithMappingsRequest(updatedFamilies);
+      const payload = await reprocessWithMappingsRequest(updatedFamilies, payrollPairOverrides);
       consumeUploadResponse(payload);
       const unresolved = payload.unmapped_pairs?.length ?? 0;
       if (unresolved === 0) {
@@ -302,6 +370,20 @@ export default function App() {
       } else {
         setStatus(`${unresolved} role${unresolved === 1 ? "" : "s"} still unmapped`);
       }
+    });
+  }
+
+  async function mapPairsToExistingFamily(additions: Record<string, string>) {
+    const next = { ...payrollPairOverrides, ...additions };
+    setPayrollPairOverrides(next);
+    void persistSet("payroll_pair_overrides", next);
+    await withBusy("mappings", async () => {
+      setStatus("Re-processing workbook with updated mappings...");
+      const payload = await reprocessWithMappingsRequest(settings.custom_families, next);
+      consumeUploadResponse(payload);
+      const unresolved = payload.unmapped_pairs?.length ?? 0;
+      if (unresolved === 0) setStatus(`${payload.job_family_count} job families`);
+      else setStatus(`${unresolved} role${unresolved === 1 ? "" : "s"} still unmapped`);
     });
   }
 
@@ -329,12 +411,13 @@ export default function App() {
 
   async function runOptimization() {
     await withBusy("optimize", async () => {
+      const settingsWithBU = await mergeActiveBUConfiguration(settings, activeBU);
       if (targetRows.length === 0) {
-        const targetPayload = await calculateTargetSplitRequest(settings);
+        const targetPayload = await calculateTargetSplitRequest(settingsWithBU);
         setTargetRows(targetPayload.rows);
       }
       setStatus("Running optimization...");
-      const payload = await runOptimizationRequest(settings);
+      const payload = await runOptimizationRequest(settingsWithBU);
       setOptimization(payload);
       setDetailTab("insights");
       setActiveStage("results");
@@ -391,7 +474,28 @@ export default function App() {
       ) : null}
 
       {stage === "home" ? (
-        <HomePage onStart={() => setActiveStage("upload")} />
+        <HomePage onStart={() => setActiveStage("bu-selection")} />
+      ) : stage === "bu-selection" && configuringBU ? (
+        <BUConfigurationPanel
+          buCode={configuringBU}
+          buName={BUSINESS_UNITS.find((b) => b.code === configuringBU)?.name ?? configuringBU}
+          onClose={() => setConfiguringBU(null)}
+          onSaved={(code) => {
+            // Saving sets this BU as the active one and advances straight to upload.
+            // The Configuration save is the "use it" gesture, so the user doesn't have
+            // to click the tile a second time after configuring.
+            setActiveBU(code);
+            setConfiguringBU(null);
+            setActiveStage("upload");
+          }}
+        />
+      ) : stage === "bu-selection" ? (
+        <BUSelectionWorkspace
+          activeBU={activeBU}
+          onOpen={(code) => setConfiguringBU(code)}
+        />
+      ) : stage === "mode" && uploadInfo ? (
+        <ModeSelectionWorkspace settings={settings} onUpdate={updateSetting} />
       ) : stage === "results" && optimization ? (
         <ResultsDashboard
           optimization={optimization}
@@ -409,7 +513,7 @@ export default function App() {
           isTargetMode={settings.optimization_mode === "target"}
           busy={busyAction === "mappings"}
           onApply={(families) => void applyMappingResolutions(families)}
-          onContinue={() => setActiveStage("ready")}
+          onMapPairsToExisting={(additions) => void mapPairsToExistingFamily(additions)}
         />
       ) : (
         <>

@@ -1,11 +1,11 @@
-// Tier 5 — "Additional Inputs" / Job Families step.
+// Tier 5."Additional Inputs" / Job Families step.
 //
 // Responsibilities:
 //   (1) Resolve unmapped (activity, profession) pairs the workbook surfaced. Until every
 //       pair has a resolution, downstream stages stay disabled.
 //   (2) Edit existing custom job families that have no payroll rows in the workbook
 //       (Target-mode flow). Creating a new custom job family from scratch is currently
-//       disabled here — see the deferred "+ Add Job Family" affordance below.
+//       disabled here.see the deferred "+ Add Job Family" affordance below.
 //
 // State lives in a parent (App.tsx). On save we call `onApply(updatedFamilies)` which
 // re-processes the workbook against the merged mappings server-side.
@@ -48,7 +48,7 @@ type Props = {
   isTargetMode: boolean;
   busy: boolean;
   onApply: (updated: CustomFamilySpec[]) => void;
-  onContinue: () => void;
+  onMapPairsToExisting: (additions: Record<string, string>) => void;
 };
 
 type Mode = "view" | "wizard";
@@ -69,14 +69,32 @@ export function MappingResolveWorkspace({
   isTargetMode,
   busy,
   onApply,
-  onContinue,
+  onMapPairsToExisting,
 }: Props) {
   const [selectedPairs, setSelectedPairs] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<Mode>("view");
   const [seed, setSeed] = useState<WizardSeed | null>(null);
+  const [mapToExistingFamily, setMapToExistingFamily] = useState<string>("");
 
   function pairKey(p: ActivityProfession) {
     return `${p.activity}|${p.profession}`;
+  }
+
+  // Existing canonical families (already in the workbook) the user can route a new
+  // profession to without creating a brand-new custom family. Sorted for stable order.
+  const existingFamilyNames = useMemo(() => {
+    const fromWorkbook = (uploadInfo.families ?? []).map((f) => f.family_name);
+    const fromCustom = customFamilies.map((f) => f.family_name);
+    return Array.from(new Set([...fromWorkbook, ...fromCustom])).sort();
+  }, [uploadInfo.families, customFamilies]);
+
+  function commitMapToExisting() {
+    if (!mapToExistingFamily || selectedPairs.size === 0) return;
+    const additions: Record<string, string> = {};
+    for (const key of selectedPairs) additions[key] = mapToExistingFamily;
+    onMapPairsToExisting(additions);
+    setSelectedPairs(new Set());
+    setMapToExistingFamily("");
   }
 
   function togglePair(pair: ActivityProfession) {
@@ -195,6 +213,27 @@ export function MappingResolveWorkspace({
             >
               Define job family from selected ({selectedPairs.size})
             </button>
+            <div className="mapping-map-to-existing">
+              <span className="mapping-map-to-existing-label">or map to existing job family</span>
+              <select
+                value={mapToExistingFamily}
+                onChange={(e) => setMapToExistingFamily(e.target.value)}
+                disabled={busy || selectedPairs.size === 0 || existingFamilyNames.length === 0}
+                aria-label="Target job family"
+              >
+                <option value="">Pick a family…</option>
+                {existingFamilyNames.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <button
+                className="btn btn-secondary"
+                disabled={busy || selectedPairs.size === 0 || !mapToExistingFamily}
+                onClick={commitMapToExisting}
+              >
+                Map ({selectedPairs.size})
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -255,13 +294,6 @@ export function MappingResolveWorkspace({
         </div>
       ) : null}
 
-      {mode === "view" && unmappedPairs.length === 0 ? (
-        <div className="mapping-continue">
-          <button className="btn btn-primary" disabled={busy} onClick={onContinue}>
-            Continue to User Assumptions
-          </button>
-        </div>
-      ) : null}
     </section>
   );
 }
@@ -393,11 +425,11 @@ function DefineFamilyWizard({
           <legend>Is this the same role across activities?</legend>
           <label className="wizard-radio">
             <input type="radio" checked={groupingMode === "single"} onChange={() => setGroupingMode("single")} />
-            Yes — fold all selected pairs into one job family
+            Yes, fold all selected pairs into one job family
           </label>
           <label className="wizard-radio">
             <input type="radio" checked={groupingMode === "split"} onChange={() => setGroupingMode("split")} />
-            No — create a separate job family for each pair (the name becomes a prefix)
+            No, create a separate job family for each pair (the name becomes a prefix)
           </label>
         </fieldset>
       ) : null}

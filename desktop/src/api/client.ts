@@ -58,7 +58,7 @@ async function resolveApiBase(): Promise<string> {
   return normalizeApiBase(resolveStaticApiBase());
 }
 
-async function getApiBase(): Promise<string> {
+export async function getApiBase(): Promise<string> {
   return initApiBase();
 }
 
@@ -88,6 +88,69 @@ export async function fetchAssumptions() {
   return parseResponse<AssumptionsCatalog>(response, "Failed to load assumptions catalog.");
 }
 
+export type AssumptionDefaults = {
+  outsourceability: Record<string, string>;
+  max_ratios: Record<string, string>;
+  drivers: Record<string, { activity: string; profession: string }[]>;
+};
+
+export async function fetchAssumptionDefaults() {
+  const apiBase = await getApiBase();
+  const response = await fetch(`${apiBase}/assumptions/defaults`);
+  return parseResponse<AssumptionDefaults>(response, "Failed to load configuration defaults.");
+}
+
+/**
+ * Trigger a browser download of the current BU configuration as XLSX. POSTs the
+ * payload so the user gets a workbook reflecting their unsaved edits too.
+ */
+export async function exportBUConfiguration(payload: {
+  bu_code: string;
+  bu_name?: string;
+  configuration: unknown;
+}): Promise<void> {
+  const apiBase = await getApiBase();
+  const response = await fetch(`${apiBase}/bu/configuration/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`Export failed: ${response.status}`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${payload.bu_code || "manpower-bu"}_configuration.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export type BUConfigurationImportResponse = {
+  configuration: {
+    outsourceability_overrides: Record<string, string>;
+    ratio_overrides: Record<string, string>;
+    driver_overrides: Record<string, { activity: string; profession: string }[]>;
+    saudi_cost_premium: number | null;
+    outsource_cost_discount: number | null;
+  };
+  errors: string[];
+};
+
+export async function importBUConfiguration(file: File): Promise<BUConfigurationImportResponse> {
+  const apiBase = await getApiBase();
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${apiBase}/bu/configuration/import`, {
+    method: "POST",
+    body: form,
+  });
+  return parseResponse<BUConfigurationImportResponse>(response, "Import failed.");
+}
+
 export async function uploadWorkbook(file: File, customFamilies: CustomFamilySpec[] = []) {
   const formData = new FormData();
   formData.append("file", file);
@@ -102,12 +165,18 @@ export async function uploadWorkbook(file: File, customFamilies: CustomFamilySpe
   return parseResponse<UploadResponse>(response, "Workbook upload failed.");
 }
 
-export async function reprocessWithMappings(customFamilies: CustomFamilySpec[]) {
+export async function reprocessWithMappings(
+  customFamilies: CustomFamilySpec[],
+  payrollPairOverrides: Record<string, string> = {},
+) {
   const apiBase = await getApiBase();
   const response = await fetch(`${apiBase}/workbooks/reprocess`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ custom_families: customFamilies }),
+    body: JSON.stringify({
+      custom_families: customFamilies,
+      payroll_pair_overrides: payrollPairOverrides,
+    }),
   });
   return parseResponse<UploadResponse>(response, "Reprocessing with new mappings failed.");
 }

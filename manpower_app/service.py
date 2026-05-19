@@ -10,6 +10,7 @@ from manpower_app.costs import (
     calculate_inhouse_fully_loaded_employee_cost,
     calculate_outsource_base_employee_cost,
     calculate_outsource_employee_cost,
+    cap_outsourced_at_inhouse,
 )
 from manpower_app.export import build_results_workbook
 from manpower_app.family_specs import (
@@ -41,7 +42,12 @@ from manpower_app.ratios import (
     resolve_average_costs,
 )
 from manpower_app.results import build_optimized_results
-from manpower_app.rules import MAXIMUM_RATIO_RULES, OUTSOURCEABILITY_RULES
+from manpower_app.rules import (
+    MAXIMUM_RATIO_RULES,
+    OUTSOURCEABILITY_RULES,
+    get_maximum_ratio_rules,
+    get_outsourceability_rules,
+)
 from manpower_app.terminology import (
     FINAL_SCENARIO_LABEL,
     LEGACY_OUTSOURCED_COST_BASIS_COLUMN,
@@ -81,6 +87,10 @@ class OptimizationSettings:
     enforce_saudization: bool = True
     saudization_rate: float = 0.30
     can_reduce_current_saudi: bool = False
+    # Dynamic Saudi protection (0.0–1.0). When set, overrides the boolean above and
+    # protects that fraction of current Saudis per family. 1.0 = today's "Protect on";
+    # 0.0 = today's "Protect off"; anything in between is partial protection.
+    protect_current_saudi_percent: float | None = None
     risk_factor: float = 0.25
     negotiated_rates: bool = False
     negotiated_insurance_cost: float = 0.0
@@ -94,6 +104,9 @@ class OptimizationSettings:
     saudi_cost_premium: float = 1.10
     outsource_cost_discount: float | None = None
     max_ratio_overrides: dict[str, str] = field(default_factory=dict)
+    # Batch-2 per-BU configuration overrides. Empty defaults preserve historical behavior.
+    outsourceability_overrides: dict[str, str] = field(default_factory=dict)
+    driver_overrides: dict[str, list[dict[str, str]]] = field(default_factory=dict)
     # Tier 5: target manpower plan mode. Empty defaults preserve historical behavior.
     optimization_mode: str = "current"  # "current" | "target"
     target_headcounts: dict[str, int] = field(default_factory=dict)
@@ -232,10 +245,28 @@ def process_workbook(
     excel_source: str | BinaryIO,
     *,
     custom_families: list[CustomFamilySpec] | None = None,
+    payroll_pair_overrides: dict[str, str] | None = None,
 ) -> ProcessedWorkbook:
+    """
+    `payroll_pair_overrides` (batch-2): maps `"<activity>|<profession>"` keys directly to
+    a canonical job family name, so the user can route a new profession (e.g. "senior labor")
+    to an existing family ("Labor") without creating a brand-new custom family.
+    """
     custom_families = custom_families or []
     custom_by_name = custom_families_by_name(custom_families)
     effective_job_family_mapping = merge_user_mappings(JOB_FAMILY_MAPPING, custom_families)
+    if payroll_pair_overrides:
+        # Overlay user-supplied pair overrides on top of the merged mapping. Stored shape
+        # is "activity|profession" -> family name to match the frontend persistence key.
+        for raw_key, family in payroll_pair_overrides.items():
+            if not isinstance(raw_key, str) or "|" not in raw_key:
+                continue
+            activity, profession = raw_key.split("|", 1)
+            cleaned_pair = f"{clean_lookup_text(activity)} - {clean_lookup_text(profession)}"
+            effective_job_family_mapping = {
+                **effective_job_family_mapping,
+                cleaned_pair: family,
+            }
 
     inhouse_df, subcontractor_df = read_manpower_workbook(excel_source)
 
@@ -581,9 +612,8 @@ def prepare_model_data(
     processed: ProcessedWorkbook,
     settings: OptimizationSettings,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
-    if safe_numeric(settings.risk_factor) <= 0:
-        raise ValueError("Risk factor must be greater than 0 because O = (T - M) / R is undefined at zero.")
-
+    # R=0 is supported end-to-end: the LP constraint O*(1-R) + I >= M degenerates to
+    # O + I >= M (sound). The rearranged closed-form (T-M)/R is guarded in ratios.py.
     data = processed.optimization_df.copy()
 
     # Tier 5: target manpower plan mode. Replace Current Headcount with the user's target
@@ -596,11 +626,42 @@ def prepare_model_data(
             axis=1,
         )
 
+    # Batch-2: when the active BU configuration supplies outsourceability or driver
+    # overrides, re-derive the affected per-family columns BEFORE the downstream LP
+    # math reads them. Empty overrides preserve the historical behavior.
+    if settings.outsourceability_overrides:
+        active_outsourceability = get_outsourceability_rules(settings.outsourceability_overrides)
+        data["Outsourceability Type"] = data.apply(
+            lambda row: active_outsourceability.get(row["Job Family"], row["Outsourceability Type"]),
+            axis=1,
+        )
+    if settings.driver_overrides:
+        mapped_workforce_df = pd.concat(
+            [
+                processed.inhouse_cleaned[["Activity_Standardized", "Profession_Standardized", "Job_Family"]]
+                if not processed.inhouse_cleaned.empty
+                else pd.DataFrame(columns=["Activity_Standardized", "Profession_Standardized", "Job_Family"]),
+                processed.subcontractor_cleaned[["Activity_Standardized", "Profession_Standardized", "Job_Family"]]
+                if not processed.subcontractor_cleaned.empty
+                else pd.DataFrame(columns=["Activity_Standardized", "Profession_Standardized", "Job_Family"]),
+            ],
+            ignore_index=True,
+        )
+        recomputed_drivers = calculate_driver_values(
+            mapped_workforce_df, driver_overrides=settings.driver_overrides
+        )
+        # Only families whose drivers were overridden get a refreshed Driver Value;
+        # untouched families keep the value computed during process_workbook.
+        for family in settings.driver_overrides:
+            mask = data["Job Family"] == family
+            if mask.any():
+                data.loc[mask, "Driver Value"] = recomputed_drivers.get(family, pd.NA)
+
     data["Current Ratio"] = data.apply(
         lambda row: build_current_ratio_display(row["Current Headcount"], row["Driver Value"]),
         axis=1,
     )
-    effective_max_ratios = {**MAXIMUM_RATIO_RULES, **(settings.max_ratio_overrides or {})}
+    effective_max_ratios = get_maximum_ratio_rules(settings.max_ratio_overrides)
     data["Maximum Ratio"] = data["Job Family"].map(effective_max_ratios).fillna("N/A")
     data["Risk Factor"] = safe_numeric(settings.risk_factor)
     data = data.drop(columns=["Target Outsourced"], errors="ignore")
@@ -724,16 +785,42 @@ def prepare_model_data(
 
     if "Avg Cost Outsourced Original" in data.columns:
         data["Avg Cost Outsourced"] = data["Avg Cost Outsourced Original"]
-    data["Negotiated cost per outsourced FTE"] = data.apply(
-        lambda row: (
-            safe_numeric(row.get("Avg Outsourced Base Cost Excluding Insurance Service"))
-            + safe_numeric(settings.negotiated_insurance_cost)
-            + safe_numeric(settings.negotiated_service_margin)
-        )
-        if settings.negotiated_rates and pd.notna(row.get("Avg Outsourced Base Cost Excluding Insurance Service"))
-        else (safe_numeric(row["Avg Cost Outsourced"]) if settings.negotiated_rates else pd.NA),
+
+    # Cost-inversion override (Scenario 1, safety officers): when the WORKBOOK has the
+    # data inverted — in-house cheaper than outsourced — cap the base outsourced cost at
+    # the in-house non-Saudi cost so the LP doesn't ignore the outsourceability rule on
+    # cost grounds. We apply this to the BASE columns only, BEFORE the negotiated rate is
+    # added, so that user-supplied insurance + service margin can still legitimately push
+    # outsourced ABOVE in-house and signal "stop outsourcing" (Scenario 8).
+    data["Avg Cost Outsourced"] = data.apply(
+        lambda row: cap_outsourced_at_inhouse(
+            row["Avg Cost Outsourced"],
+            row["Fully Loaded Cost per In-house Non-Saudi Employee"],
+        ),
         axis=1,
     )
+    if "Avg Outsourced Base Cost Excluding Insurance Service" in data.columns:
+        data["Avg Outsourced Base Cost Excluding Insurance Service"] = data.apply(
+            lambda row: cap_outsourced_at_inhouse(
+                row["Avg Outsourced Base Cost Excluding Insurance Service"],
+                row["Fully Loaded Cost per In-house Non-Saudi Employee"],
+            ) if pd.notna(row.get("Avg Outsourced Base Cost Excluding Insurance Service")) else pd.NA,
+            axis=1,
+        )
+
+    # Negotiated cost per outsourced FTE: BASE + user-supplied insurance + service margin.
+    # When the workbook lacks per-family base data (the "Excluding" column is NA for that
+    # family — typically when no subcontractor rows exist for it), fall back to the family's
+    # average outsourced cost so insurance + margin STILL apply (Scenario 8 fix — previously
+    # those families silently skipped the user's negotiated inputs).
+    def _negotiated_cost(row):
+        if not settings.negotiated_rates:
+            return pd.NA
+        excl = row.get("Avg Outsourced Base Cost Excluding Insurance Service")
+        base = safe_numeric(excl) if pd.notna(excl) else safe_numeric(row["Avg Cost Outsourced"])
+        return base + safe_numeric(settings.negotiated_insurance_cost) + safe_numeric(settings.negotiated_service_margin)
+    data["Negotiated cost per outsourced FTE"] = data.apply(_negotiated_cost, axis=1)
+
     data[OUTSOURCED_UNIT_COST_BASIS_COLUMN] = data.apply(
         lambda row: safe_numeric(row["Negotiated cost per outsourced FTE"])
         if settings.negotiated_rates and pd.notna(row.get("Negotiated cost per outsourced FTE"))
@@ -755,6 +842,7 @@ def prepare_model_data(
         normalize_lookup_text("Engineer"): settings.engineer_saudization_rate,
         normalize_lookup_text("Representative"): settings.sales_saudization_rate,
         normalize_lookup_text("Executive Management"): settings.management_saudization_rate,
+        normalize_lookup_text("Management"): settings.management_saudization_rate,
     }
     data, optimized_payroll, optimization_status = solve_optimization(
         data,
@@ -763,6 +851,7 @@ def prepare_model_data(
         can_reduce_current_saudi=settings.can_reduce_current_saudi,
         tenure_constraint_active=tenure_constraint_active,
         profession_saudization_rates=profession_saudization_rates,
+        protect_current_saudi_percent=settings.protect_current_saudi_percent,
     )
     is_target_mode = settings.optimization_mode == "target"
     metadata = {
@@ -883,6 +972,7 @@ def build_optimization_audit(
         normalize_lookup_text("Engineer"): settings.engineer_saudization_rate,
         normalize_lookup_text("Representative"): settings.sales_saudization_rate,
         normalize_lookup_text("Executive Management"): settings.management_saudization_rate,
+        normalize_lookup_text("Management"): settings.management_saudization_rate,
     }
 
     for _, row in data.iterrows():

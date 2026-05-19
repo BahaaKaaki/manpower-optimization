@@ -18,8 +18,8 @@ async function getStore(): Promise<Store | null> {
   if (!storePromise) {
     storePromise = import("@tauri-apps/plugin-store").then(({ load }) =>
       load(STORE_FILE).catch((err) => {
-        // Failure to open the file (e.g. permissions) shouldn't break the app —
-        // fall through to the localStorage path below.
+        // Failure to open the file (e.g. permissions) shouldn't break the app.
+        // Fall through to the localStorage path below.
         console.error("tauri-plugin-store load failed, falling back to localStorage:", err);
         return null;
       }),

@@ -29,7 +29,11 @@ def calculate_outsource_employee_cost(row, service_fee_column=None, negotiated_s
         row,
         ["Service Margin", "Service Fee", "Service Fees", "Service Charge"],
     )
-    cost += min(service_margin, 500.0) if negotiated_service_margin else service_margin
+    # The `negotiated_service_margin` flag historically capped the workbook's per-row
+    # margin at 500 SAR (the assumed "negotiated floor"). That floor is now the user's
+    # responsibility via the settings.negotiated_service_margin input on the LP path,
+    # so the flag is kept for the call-site signature but no longer mutates the cost.
+    cost += service_margin
 
     return cost
 
@@ -85,6 +89,21 @@ def calculate_inhouse_fully_loaded_employee_cost(row):
 
 
 DEFAULT_SAUDI_COST_PREMIUM = 1.10
+
+
+def cap_outsourced_at_inhouse(outsourced_unit_cost, inhouse_non_saudi_unit_cost):
+    """Enforce the consultant assumption that outsourced workers are not more expensive
+    than in-house non-Saudis. If the uploaded workbook has the inversion (e.g. safety
+    officers where in-house is cheaper than outsourced), the LP would otherwise prefer
+    in-house on cost grounds and ignore the outsourceability rule. Capping outsourced
+    at the in-house non-Saudi unit cost neutralizes the cost inversion and lets the
+    ratio/outsourceability rule decide. Mirrors the Saudi premium clamp pattern below.
+    """
+    outsourced = safe_numeric(outsourced_unit_cost)
+    inhouse = safe_numeric(inhouse_non_saudi_unit_cost)
+    if inhouse <= 0 or outsourced <= 0:
+        return outsourced
+    return min(outsourced, inhouse)
 
 
 def calculate_inhouse_cost_split(average_cost, saudi_count, non_saudi_count, saudi_premium=DEFAULT_SAUDI_COST_PREMIUM):

@@ -13,6 +13,11 @@ from starlette.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from manpower_app.assumptions import build_assumptions_catalog
+from manpower_app.bu_config_io import (
+    BUConfigurationPayload,
+    build_workbook as build_bu_config_workbook,
+    parse_workbook as parse_bu_config_workbook,
+)
 from manpower_app.family_specs import (
     ActivityProfession,
     CustomFamilyCosts,
@@ -118,6 +123,9 @@ class OptimizationSettingsRequest(BaseModel):
     enforce_saudization: bool = True
     saudization_rate: float = Field(default=0.30, ge=0, le=1)
     can_reduce_current_saudi: bool = False
+    # Dynamic Saudi protection (0.0–1.0). When provided, it overrides the legacy
+    # `can_reduce_current_saudi` boolean and protects that fraction per family.
+    protect_current_saudi_percent: float | None = Field(default=None, ge=0, le=1)
     risk_factor: float = Field(default=0.25, ge=0, le=1)
     negotiated_rates: bool = False
     negotiated_insurance_cost: float = 0.0
@@ -130,6 +138,9 @@ class OptimizationSettingsRequest(BaseModel):
     saudi_cost_premium: float = Field(default=1.10, ge=1.0, le=3.0)
     outsource_cost_discount: float | None = Field(default=None, ge=0, le=1)
     max_ratio_overrides: dict[str, str] = Field(default_factory=dict)
+    # Batch-2 BU configuration overrides. Empty defaults preserve historical behavior.
+    outsourceability_overrides: dict[str, str] = Field(default_factory=dict)
+    driver_overrides: dict[str, list[dict[str, str]]] = Field(default_factory=dict)
     optimization_mode: Literal["current", "target"] = "current"
     target_headcounts: dict[str, int] = Field(default_factory=dict)
     custom_families: list[CustomFamilySpecRequest] = Field(default_factory=list)
@@ -144,6 +155,9 @@ class OptimizationSettingsRequest(BaseModel):
 
 class ReprocessRequest(BaseModel):
     custom_families: list[CustomFamilySpecRequest] = Field(default_factory=list)
+    # Batch-2: route an unmapped (activity, profession) pair to an existing canonical
+    # family by name. Keyed by "activity|profession" to match the frontend persistence.
+    payroll_pair_overrides: dict[str, str] = Field(default_factory=dict)
 
 
 class AppStore:
@@ -203,6 +217,98 @@ def assumptions() -> dict[str, Any]:
     panel so reviewers can audit what the optimizer is doing without reading code.
     """
     return build_assumptions_catalog()
+
+
+@app.get("/assumptions/defaults")
+def assumption_defaults() -> dict[str, Any]:
+    """Per-BU Configuration seeds. The desktop Configuration panel calls this once on
+    load to render the *default* outsourceability, ratio, and driver values; the user's
+    saved overrides per BU are then layered on top of these defaults in the UI."""
+    from manpower_app.rules import MAXIMUM_RATIO_RULES, OUTSOURCEABILITY_RULES
+
+    driver_defaults: dict[str, list[dict[str, str]]] = {
+        "Quarries Foreman": [
+            {"activity": "Quarries", "profession": "Labor"},
+            {"activity": "Quarries", "profession": "Skilled Labor"},
+            {"activity": "Quarries", "profession": "Technician"},
+        ],
+        "Production Foreman": [
+            {"activity": "Factory", "profession": "Labor"},
+            {"activity": "Factory", "profession": "Skilled Labor"},
+            {"activity": "Factory", "profession": "Technician"},
+        ],
+        "Installation Foreman": [
+            {"activity": "Installation", "profession": "Skilled Labor"},
+            {"activity": "Installation", "profession": "Labor"},
+        ],
+        "Showroom Supervisor": [
+            {"activity": "Showroom", "profession": "Labor"},
+            {"activity": "Showroom", "profession": "Skilled Labor"},
+            {"activity": "Showroom", "profession": "Store Keeper"},
+            {"activity": "Showroom", "profession": "Foreman"},
+            {"activity": "Showroom", "profession": "Operator"},
+        ],
+        "Safety Officer": [
+            {"activity": "Factory", "profession": ""},
+            {"activity": "Idle Saudi Labor", "profession": ""},
+            {"activity": "Installation", "profession": ""},
+            {"activity": "Quarries", "profession": ""},
+        ],
+        "Quarries Supervisor": [{"activity": "Quarries", "profession": "Foreman"}],
+        "Installation Supervisor": [{"activity": "Installation", "profession": "Foreman"}],
+        "Factory Supervisor": [{"activity": "Factory", "profession": "Foreman"}],
+    }
+    return {
+        "outsourceability": dict(sorted(OUTSOURCEABILITY_RULES.items())),
+        "max_ratios": dict(sorted(MAXIMUM_RATIO_RULES.items())),
+        "drivers": driver_defaults,
+    }
+
+
+class BUConfigurationExportRequest(BaseModel):
+    bu_code: str
+    bu_name: str | None = None
+    configuration: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.get("/bu/configuration/template")
+def bu_configuration_template(bu_code: str = "", bu_name: str = "") -> Response:
+    """Download a blank-template workbook. Use the empty-config path so all override
+    columns are blank — the user can fill them in Excel and re-upload. If no `bu_code`
+    is provided the file is a generic shared template (still valid)."""
+    payload = BUConfigurationPayload()
+    xlsx = build_bu_config_workbook(bu_code or "(template)", bu_name or None, payload)
+    filename = f"{(bu_code or 'manpower-bu')}_configuration_template.xlsx"
+    return Response(
+        content=xlsx,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/bu/configuration/export")
+def bu_configuration_export(payload: BUConfigurationExportRequest) -> Response:
+    """Download the user's currently-saved BU configuration as XLSX."""
+    config = BUConfigurationPayload.from_dict(payload.configuration)
+    xlsx = build_bu_config_workbook(payload.bu_code, payload.bu_name, config)
+    filename = f"{payload.bu_code or 'manpower-bu'}_configuration.xlsx"
+    return Response(
+        content=xlsx,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/bu/configuration/import")
+async def bu_configuration_import(file: UploadFile) -> dict[str, Any]:
+    """Parse an uploaded Configuration XLSX, validate, return the parsed payload.
+    The frontend persists it locally — the server is stateless here so the user can
+    sanity-check the result before saving."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided.")
+    contents = await file.read()
+    config, errors = parse_bu_config_workbook(contents)
+    return {"configuration": config.to_dict(), "errors": errors}
 
 
 def _build_upload_response(processed: ProcessedWorkbook, filename: str | None) -> dict[str, Any]:
@@ -269,6 +375,7 @@ def reprocess_workbook(payload: ReprocessRequest) -> dict[str, Any]:
         store.processed = process_workbook(
             io.BytesIO(store.workbook_bytes),
             custom_families=custom_specs,
+            payroll_pair_overrides=payload.payroll_pair_overrides or None,
         )
         store.model_data = None
         store.model_metadata = None
