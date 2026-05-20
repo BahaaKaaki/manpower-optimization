@@ -383,6 +383,23 @@ async def upload_workbook(
     """
     custom_specs = _custom_families_from_json(custom_families)
     bu_config = _bu_configuration_from_json(bu_configuration)
+    # Hard-block uploads for an unconfigured BU. Without explicit mappings the
+    # engine would silently fall back to the hardcoded defaults (MGIC's data),
+    # which produces misleading results for any other BU. Force the consultant
+    # to upload the BU's configuration Excel first.
+    if (
+        not bu_config.profession_mapping
+        and not bu_config.activity_mapping
+        and not bu_config.job_family_mapping
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The active Business Unit has no profession / activity / job-family "
+                "mappings configured. Open the BU Configuration panel and upload "
+                "the BU's Excel before uploading a payroll."
+            ),
+        )
     try:
         contents = await file.read()
         store.workbook_bytes = contents

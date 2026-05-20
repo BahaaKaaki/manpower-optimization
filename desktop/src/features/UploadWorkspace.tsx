@@ -21,6 +21,9 @@ type UploadWorkspaceProps = {
   debugEnabled: boolean;
   unmappedPairs: UnmappedPair[];
   activeBUName: string | null;
+  /** Whether the active BU has any profession/activity/job-family mappings configured.
+   *  When false the Upload screen renders a hard-block card instead of the drop zone. */
+  isBUConfigured: boolean;
   onOpenBUConfiguration: () => void;
 };
 
@@ -108,11 +111,51 @@ export function UploadWorkspace({
   debugEnabled,
   unmappedPairs,
   activeBUName,
+  isBUConfigured,
   onOpenBUConfiguration,
 }: UploadWorkspaceProps) {
   const totalWorkforce = (uploadInfo?.inhouse_count ?? 0) + (uploadInfo?.subcontractor_count ?? 0);
   const modelRows = uploadInfo?.model_input_count ?? uploadInfo?.model_input?.length ?? 0;
   const hasUnmapped = unmappedPairs.length > 0;
+
+  // Hard-block the upload step when the active BU has no configuration. The
+  // engine would otherwise silently fall back to the tool's hardcoded defaults
+  // (MGIC's data), producing misleading results for any other BU.
+  if (!uploadInfo && !isBUConfigured) {
+    return (
+      <section className="upload-stage">
+        <div className="unmapped-block">
+          <div className="unmapped-block-head">
+            <div className="unmapped-block-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 8v5m0 4h.01M3.07 19h17.86c1.1 0 1.79-1.18 1.25-2.13L13.25 4.23c-.55-.95-1.95-.95-2.5 0L1.82 16.87c-.54.95.16 2.13 1.25 2.13z"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div>
+              <h3>Configure {activeBUName ?? "this Business Unit"} first</h3>
+              <p>
+                This Business Unit has no profession / activity / job-family mappings yet.
+                Open its <strong>Configuration</strong> panel, download the starter Excel,
+                fill in the values for <strong>{activeBUName ?? "this BU"}</strong>, and upload
+                the configuration. Once that's done you can upload a payroll here.
+              </p>
+            </div>
+          </div>
+          <div className="unmapped-actions">
+            <button className="btn btn-primary" type="button" onClick={onOpenBUConfiguration}>
+              Open {activeBUName ?? "BU"} Configuration
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (!uploadInfo) {
     return (

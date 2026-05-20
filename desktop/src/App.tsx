@@ -115,6 +115,11 @@ export default function App() {
   const [unmappedPairs, setUnmappedPairs] = useState<UnmappedPair[]>([]);
   const [activeBU, setActiveBU] = useState<BusinessUnitCode | null>(null);
   const [configuringBU, setConfiguringBU] = useState<BusinessUnitCode | null>(null);
+  // True once the active BU has at least one of profession/activity/job-family
+  // mappings populated. When false, the Upload screen renders a hard-block
+  // card instead of the drop zone. Polled when activeBU changes and after
+  // the Configuration panel closes (the user may have just uploaded a config).
+  const [isBUConfigured, setIsBUConfigured] = useState<boolean>(false);
 
   // Hydrate persisted custom_families on boot. Until the persistence layer reports back,
   // settings.custom_families is empty (the default). After hydration, any prior session's
@@ -145,6 +150,32 @@ export default function App() {
   useEffect(() => {
     if (activeBU) void persistSet("active_bu", activeBU);
   }, [activeBU]);
+
+  // Compute whether the active BU has any mapping data configured. Refresh
+  // whenever the active BU changes OR whenever the Configuration panel closes
+  // (the user may have just uploaded the BU's Excel and now is_empty is false).
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeBU) {
+      setIsBUConfigured(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    void persistGet<BUConfiguration | null>(`bu:${activeBU}:configuration`, null).then((stored) => {
+      if (cancelled) return;
+      const configured = Boolean(
+        stored &&
+          ((stored.profession_mapping && Object.keys(stored.profession_mapping).length > 0) ||
+            (stored.activity_mapping && Object.keys(stored.activity_mapping).length > 0) ||
+            (stored.job_family_mapping && Object.keys(stored.job_family_mapping).length > 0)),
+      );
+      setIsBUConfigured(configured);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBU, configuringBU]);
 
 
   // With BU Excel owning all mappings, the workflow has no separate "Mappings" stage.
@@ -485,6 +516,7 @@ export default function App() {
               debugEnabled={debugEnabled}
               unmappedPairs={unmappedPairs}
               activeBUName={activeBU ? (BUSINESS_UNITS.find((b) => b.code === activeBU)?.name ?? activeBU) : null}
+              isBUConfigured={isBUConfigured}
               onOpenBUConfiguration={() => {
                 if (activeBU) {
                   setConfiguringBU(activeBU);
