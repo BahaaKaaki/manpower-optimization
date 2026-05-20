@@ -6584,29 +6584,26 @@ html {
   color: var(--text-secondary);
 }
 
-/* ── Saudization Hero (horizontal journey band) ───────────────────────
-   Compact single-row band that sits between the KPI strip and the donut
-   breakdown. Visualizes Current → Optimized as a horizontal progress bar
-   with two markers. Designed to fit on a 1366×768 laptop screen without
-   scrolling — height ~115px including all narrative copy. */
-.saudization-hero {
+/* ── Saudization strip ────────────────────────────────────────────────
+   Single-line non-intrusive narrative strip between the KPI grid and
+   the donut breakdown. The donut chart carries the visual proportion;
+   this strip just adds the rate-level numbers and Saudi headcount delta
+   in one elegant row of typography. Height ~36px.
+   Replaces the earlier ring-gauge hero / journey-band hero. */
+.saudization-strip {
   position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 18px 14px;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 9px 16px;
   margin: 0 0 14px 0;
-  background:
-    linear-gradient(135deg, rgba(80, 156, 53, 0.14) 0%, rgba(56, 117, 35, 0.22) 100%),
-    radial-gradient(circle at 0% 0%, rgba(127, 204, 94, 0.20), transparent 60%);
-  border: 1px solid rgba(127, 204, 94, 0.28);
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-  box-shadow:
-    0 8px 20px rgba(14, 20, 32, 0.14),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-  isolation: isolate;
-  animation: saudization-hero-enter 520ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  background: rgba(127, 204, 94, 0.06);
+  border: 1px solid rgba(127, 204, 94, 0.22);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: rgba(246, 250, 243, 0.78);
+  animation: saudization-hero-enter 380ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 @keyframes saudization-hero-enter {
@@ -6618,33 +6615,13 @@ html {
   .saudization-hero { animation: none; }
 }
 
-/* Diagonal flag-stripe motif at the corners — kept subtle so it doesn't fight the bar */
-.saudization-hero-motif {
-  position: absolute;
-  inset: -10px -10px auto auto;
-  width: 150px;
-  height: 100%;
-  background-image: repeating-linear-gradient(
-    -45deg,
-    rgba(255, 255, 255, 0.06) 0 1px,
-    transparent 1px 16px
-  );
-  pointer-events: none;
-  opacity: 0.6;
-  z-index: 0;
+.saudization-strip-flag {
+  flex-shrink: 0;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.20);
 }
 
-.saudization-hero-head {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.saudization-hero-eyebrow {
+.saudization-strip-label {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.10em;
@@ -6652,199 +6629,71 @@ html {
   color: var(--accent-300, #b1de9a);
 }
 
-.saudization-hero-delta {
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  background: rgba(127, 204, 94, 0.20);
-  color: #e1f2d5;
+.saudization-strip-rates {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.saudization-hero-delta--down {
+.saudization-strip-current {
+  color: rgba(246, 250, 243, 0.65);
+  font-weight: 600;
+}
+
+.saudization-strip-arrow {
+  color: var(--accent-400, var(--accent-500));
+  opacity: 0.7;
+  font-size: 13px;
+}
+
+.saudization-strip-optimized {
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.saudization-strip-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(127, 204, 94, 0.22);
+  color: #d5edc4;
+}
+
+.saudization-strip-delta--down {
   background: rgba(232, 152, 48, 0.22);
   color: #f6d6a3;
 }
 
-.saudization-hero-delta--flat {
+.saudization-strip-delta--flat {
   background: rgba(255, 255, 255, 0.10);
   color: rgba(246, 250, 243, 0.72);
 }
 
-.saudization-hero-delta-sep {
-  opacity: 0.55;
-  margin: 0 2px;
-}
-
-.saudization-hero-delta-positions {
-  font-weight: 600;
-  opacity: 0.92;
-}
-
-/* Current → Optimized big-number row */
-.saudization-hero-rates {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin: 4px 0 2px;
-}
-
-.saudization-hero-rate {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.saudization-hero-rate-tag {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(246, 250, 243, 0.55);
-}
-
-.saudization-hero-rate-value {
-  font-size: 22px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-
-.saudization-hero-rate--current .saudization-hero-rate-value {
-  color: rgba(246, 250, 243, 0.78);
-}
-
-.saudization-hero-rate--optimized .saudization-hero-rate-value {
-  color: #ffffff;
-  font-size: 26px;
-}
-
-.saudization-hero-arrow {
+.saudization-strip-positions {
   font-size: 11px;
-  letter-spacing: -0.05em;
-  color: var(--accent-400, var(--accent-500));
-  opacity: 0.7;
-}
-
-/* Horizontal journey bar — 0% to 100% with two markers */
-.saudization-hero-bar {
-  position: relative;
-  z-index: 1;
-  height: 10px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: visible;
-  margin: 6px 0 8px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.20);
-}
-
-.saudization-hero-bar-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  border-radius: 5px;
-  transform-origin: left center;
-  animation: saudization-bar-grow 720ms cubic-bezier(0.32, 0.72, 0, 1) both;
-}
-
-.saudization-hero-bar-fill--current {
-  background: rgba(255, 255, 255, 0.22);
-  z-index: 1;
-}
-
-.saudization-hero-bar-fill--optimized {
-  background: linear-gradient(90deg, var(--accent-700) 0%, var(--accent-500) 100%);
-  z-index: 2;
-  box-shadow: 0 0 12px rgba(127, 204, 94, 0.35);
-}
-
-/* Flag-stripe at the leading edge of the optimized fill */
-.saudization-hero-bar-fill--optimized::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 30%;
-  background-image: repeating-linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.32) 0 1.5px,
-    transparent 1.5px 8px
-  );
-  border-radius: 5px 0 0 5px;
-}
-
-@keyframes saudization-bar-grow {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .saudization-hero-bar-fill { animation: none; }
-}
-
-.saudization-hero-bar-marker {
-  position: absolute;
-  top: -3px;
-  width: 2px;
-  height: 16px;
-  border-radius: 1px;
-  background: #ffffff;
-  transform: translateX(-50%);
-  z-index: 3;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.30);
-}
-
-.saudization-hero-bar-marker--current {
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.saudization-hero-bar-marker--optimized {
-  background: #ffffff;
-  box-shadow: 0 0 0 2px rgba(127, 204, 94, 0.45);
-}
-
-.saudization-hero-sub {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  font-size: 11px;
-  color: rgba(246, 250, 243, 0.62);
-  line-height: 1.4;
-}
-
-.saudization-hero-sub strong {
-  color: #ffffff;
-  font-weight: 700;
+  color: rgba(246, 250, 243, 0.58);
   font-variant-numeric: tabular-nums;
 }
 
-.saudization-hero-sep {
-  opacity: 0.45;
-  margin: 0 2px;
+.saudization-strip-help {
+  margin-left: auto;
+  font-size: 11px;
+  color: rgba(246, 250, 243, 0.45);
+  cursor: help;
+  transition: color var(--transition-fast);
 }
+
+.saudization-strip-help:hover { color: rgba(246, 250, 243, 0.85); }
 
 @media (max-width: 720px) {
-  .saudization-hero {
-    padding: 14px;
-  }
-  .saudization-hero-head {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .saudization-hero-rates {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-  .saudization-hero-arrow { display: none; }
+  .saudization-strip { font-size: 11px; gap: 8px; }
+  .saudization-strip-positions { width: 100%; }
 }
 
 /* Minimal divider between Current/Optimized donuts. The Saudization story lives
