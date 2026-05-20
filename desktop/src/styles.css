@@ -5185,150 +5185,244 @@ textarea:focus-visible {
   flex-wrap: wrap;
 }
 
-/* ── Logo-only BU tile (Round-3 redesign) ───────────────────────────── */
-.bu-card--logo-only {
-  padding: 0;
+/* ── BU Showcase tile ─────────────────────────────────────────────────
+   Clean single-action tile. The WHOLE body is the click target (Select).
+   A small floating pencil icon in the top-right opens the Configure panel.
+   The logo carries the brand identity — no duplicate name/code text. */
+.bu-card--showcase {
   position: relative;
+  padding: 0;
   cursor: default;
-  min-height: 280px;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(127, 204, 94, 0.06), transparent 60%),
-    var(--bg-surface);
+  overflow: hidden;
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
 }
 
-.bu-card--logo-only:hover:not(:disabled) {
-  transform: translateY(-5px);
+.bu-card--showcase:hover:not(:disabled) {
+  transform: translateY(-6px);
   box-shadow:
-    0 22px 40px rgba(14, 20, 32, 0.10),
-    0 6px 12px rgba(14, 20, 32, 0.06),
+    0 26px 44px rgba(14, 20, 32, 0.10),
+    0 8px 14px rgba(14, 20, 32, 0.06),
     0 0 0 1px var(--accent-200, var(--accent-100));
 }
 
-/* Top row: status pill on left, optional Active badge on right */
-.bu-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px 0 16px;
-  min-height: 30px;
-}
-
-/* Status pill — compact, dot + short label ("Custom" / "Defaults") */
-.bu-card--logo-only .bu-card-status {
+/* Floating pencil icon in the top-right corner */
+.bu-card-configure-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px 3px 7px;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-light);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.85);
+  transition:
+    opacity 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.bu-card-configure-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.bu-card--showcase:hover .bu-card-configure-icon,
+.bu-card-configure-icon:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.bu-card-configure-icon:hover {
+  background: var(--accent-700);
+  color: #ffffff;
+  border-color: var(--accent-700);
+  transform: scale(1.06);
+}
+
+.bu-card-configure-icon:focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+/* Active flag — pill in the top-left for the currently-selected BU */
+.bu-card-active-flag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px 3px 7px;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent-700), var(--accent-600));
   border-radius: var(--radius-full);
-  color: var(--text-secondary);
-  background: var(--bg-raised);
-  border: 1px solid var(--border-light);
+  box-shadow: 0 2px 6px rgba(80, 156, 53, 0.35);
+  animation: bu-selected-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-.bu-card--logo-only .bu-card-status--custom {
-  color: var(--accent-700);
-  background: var(--accent-50);
-  border-color: var(--accent-100);
+.bu-card-active-flag svg {
+  width: 11px;
+  height: 11px;
 }
 
-.bu-card--logo-only .bu-card-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-faint, var(--text-muted));
-}
-
-.bu-card--logo-only .bu-card-status--custom .bu-card-status-dot {
-  background: var(--accent-600);
-  box-shadow: 0 0 0 3px rgba(127, 204, 94, 0.18);
-}
-
-/* Logo section — gradient backdrop "stage" for the logo + a tiny code label */
-.bu-card-logo-section {
+/* Whole card body — the single click target for Select */
+.bu-card-body {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 14px 18px 8px 18px;
-  min-height: 0;
+  gap: 12px;
+  width: 100%;
+  padding: 22px 20px 18px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
 }
 
-.bu-card--logo-only .bu-card-logo {
+.bu-card-body:focus-visible {
+  outline: 3px solid var(--accent-500);
+  outline-offset: -3px;
+}
+
+/* Logo plate — the hero element */
+.bu-card--showcase .bu-card-logo {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 124px;
-  padding: 14px;
-  margin: 0;
+  height: 156px;
+  padding: 18px;
   background:
-    radial-gradient(circle at 50% 30%, #ffffff 0%, rgba(245, 249, 243, 0.85) 65%, rgba(232, 240, 226, 0.55) 100%);
+    radial-gradient(circle at 50% 30%, #ffffff 0%, rgba(248, 251, 245, 0.92) 60%, rgba(232, 242, 222, 0.55) 100%);
   border: 1px solid var(--accent-100);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   position: relative;
   transition:
-    background 280ms cubic-bezier(0.32, 0.72, 0, 1),
-    border-color 280ms cubic-bezier(0.32, 0.72, 0, 1),
-    transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+    background 320ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.bu-card--logo-only:hover .bu-card-logo {
+.bu-card--showcase:hover .bu-card-logo {
   background:
-    radial-gradient(circle at 50% 30%, #ffffff 0%, #f3faec 60%, #e2efd6 100%);
+    radial-gradient(circle at 50% 30%, #ffffff 0%, #f1f9e9 55%, #def0d0 100%);
   border-color: var(--accent-300, var(--accent-500));
 }
 
-.bu-card--logo-only .bu-card-logo img {
+.bu-card--showcase .bu-card-logo img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06));
-  transition: transform 360ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 380ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.bu-card--logo-only:hover .bu-card-logo img {
-  transform: scale(1.06);
+.bu-card--showcase:hover .bu-card-logo img {
+  transform: scale(1.05);
 }
 
-/* BU short code — subtle identifier below the logo */
-.bu-card-code {
-  font-family: var(--font-display);
+/* Footer row inside the card body: status on the left, CTA on the right */
+.bu-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 2px 0 2px;
+}
+
+.bu-card-meta-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.bu-card-meta-status--custom {
+  color: var(--accent-700);
+}
+
+.bu-card-meta-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint, var(--text-muted));
+  flex-shrink: 0;
+}
+
+.bu-card-meta-status--custom .bu-card-meta-dot {
+  background: var(--accent-600);
+  box-shadow: 0 0 0 3px rgba(127, 204, 94, 0.20);
+}
+
+/* Inline CTA on the right of the footer — only shows arrow + label, no chrome */
+.bu-card-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  transition: color var(--transition-fast);
-}
-
-.bu-card--logo-only:hover .bu-card-code {
+  letter-spacing: 0.02em;
   color: var(--accent-700);
+  transition: gap 200ms cubic-bezier(0.32, 0.72, 0, 1), color var(--transition-fast);
 }
 
-.bu-card--selected .bu-card-code {
-  color: var(--accent-700);
+.bu-card-cta svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Hide-but-keep-accessible class for the full BU name (screen readers only) */
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+.bu-card--showcase:hover .bu-card-cta svg {
+  transform: translateX(3px);
+}
+
+.bu-card--showcase:hover .bu-card-cta {
+  color: var(--accent-800, var(--accent-700));
+}
+
+/* Selected state: subtle accent glow + the active flag pop */
+.bu-card--selected {
+  border-color: var(--accent-500);
+  box-shadow:
+    0 0 0 2px var(--accent-100),
+    0 8px 18px rgba(80, 156, 53, 0.12);
+}
+
+.bu-card--selected .bu-card-logo {
+  background:
+    radial-gradient(circle at 50% 30%, #ffffff 0%, #ecf6e2 55%, #d6ecc5 100%);
+  border-color: var(--accent-400, var(--accent-500));
+}
+
+.bu-card--selected .bu-card-cta {
+  color: var(--accent-800, var(--accent-700));
+}
+
+/* Reduced motion: kill the hover transform/scale animations */
+@media (prefers-reduced-motion: reduce) {
+  .bu-card--showcase:hover { transform: none; }
+  .bu-card--showcase:hover .bu-card-logo img { transform: none; }
+  .bu-card--showcase:hover .bu-card-cta svg { transform: none; }
 }
 
 /* "Active" badge — sits in the .bu-card-header row, opposite the status pill */
