@@ -2341,13 +2341,19 @@ button, input, select {
   color: var(--accent-400, var(--accent-500));
 }
 
+/* Inside the dark output-summary-card we drop the donut-card chrome entirely:
+   no min-height (was pushing the donut-card taller than content and clipping the
+   Saudization caption below it), no border, no card background, tighter padding.
+   The donut + legend sit floating directly on the dark backdrop. */
 .output-breakdown-grid .donut-card {
-  min-height: 100%;
   margin: 0;
-  border-color: rgba(127, 204, 94, 0.18);
-  background: rgba(255, 255, 255, 0.045);
+  padding: 8px 0 0 0;
+  border: none;
+  background: transparent;
   box-shadow: none;
   color: #f6faf3;
+  min-height: 0;
+  gap: 12px;
 }
 
 .output-breakdown-grid .donut-card:hover {
