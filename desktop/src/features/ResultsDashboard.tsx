@@ -566,11 +566,14 @@ export function ResultsDashboard({
           )}
         </div>
 
+        {/* Saudization rate uses the IN-HOUSE workforce as the denominator
+            (matches Nitaqat convention + the backend's saudization_achieved).
+            Outsourced workers are excluded — they don't count toward the rate. */}
         <SaudizationHero
           currentSaudi={currentSaudi}
-          currentTotal={currentEmployees}
+          currentTotal={currentSaudi + currentNonSaudi}
           optimizedSaudi={totalSaudi}
-          optimizedTotal={totalEmployees}
+          optimizedTotal={totalSaudi + totalNonSaudi}
         />
 
         <div className="output-breakdown-grid">

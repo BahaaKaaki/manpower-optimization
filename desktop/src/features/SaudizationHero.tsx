@@ -151,6 +151,7 @@ export function SaudizationHero({
         <span
           className={`saudization-hero-delta saudization-hero-delta--${tone}`}
           aria-label={`${deltaSign}${deltaPp.toFixed(1)} percentage points vs current`}
+          title={`pp = percentage points (absolute difference between the two rates). Current ${(currentRate * 100).toFixed(1)}%, optimized ${(optimizedRate * 100).toFixed(1)}%.`}
         >
           <span aria-hidden>{deltaGlyph}</span>
           {`${deltaSign}${deltaPp.toFixed(1)} pp vs current`}
@@ -163,6 +164,10 @@ export function SaudizationHero({
             : newSaudiPositions < 0
               ? ` · ${Math.abs(newSaudiPositions)} positions reduced`
               : ""}
+        </p>
+        <p className="saudization-hero-footnote">
+          Rate excludes outsourced workers (in-house Saudis ÷ in-house workforce, per Nitaqat).
+          <span className="saudization-hero-pp-help"> pp = percentage points.</span>
         </p>
       </div>
     </div>

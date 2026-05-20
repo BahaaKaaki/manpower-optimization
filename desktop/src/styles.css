@@ -6743,6 +6743,19 @@ html {
   font-variant-numeric: tabular-nums;
 }
 
+.saudization-hero-footnote {
+  margin: 0;
+  font-size: 11px;
+  color: rgba(246, 250, 243, 0.55);
+  line-height: 1.45;
+  font-style: italic;
+}
+
+.saudization-hero-pp-help {
+  font-style: normal;
+  opacity: 0.85;
+}
+
 @media (max-width: 720px) {
   .saudization-hero {
     grid-template-columns: 1fr;
@@ -6792,4 +6805,210 @@ html {
   font-size: 13px;
   background: var(--bg-surface);
   min-width: 200px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Round-3 polish pass: entrance animations + hover affordances across the
+   workflow stages. Reuses existing easing curves (0.32, 0.72, 0, 1) for
+   coherence with bu-card-enter / saudization-hero-enter.
+   All animations respect prefers-reduced-motion via the trailing @media.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes polish-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes polish-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes polish-check-pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes polish-aura {
+  0%, 100% { box-shadow: 0 18px 42px rgba(80, 156, 53, 0.24), 0 0 0 0 rgba(127, 204, 94, 0.18); }
+  50%      { box-shadow: 0 18px 42px rgba(80, 156, 53, 0.30), 0 0 0 8px rgba(127, 204, 94, 0.04); }
+}
+
+@keyframes polish-icon-pop {
+  0%   { transform: scale(1) rotate(0deg); }
+  100% { transform: scale(1.08) rotate(-2deg); }
+}
+
+/* ── Home page ─────────────────────────────────────────────────────── */
+.home-cover-logo {
+  animation: polish-fade-up 600ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.home-cover-title h1 {
+  animation: polish-fade-up 620ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation-delay: 80ms;
+}
+
+.home-cover-title p:not(.home-cover-tagline) {
+  animation: polish-fade-up 620ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation-delay: 160ms;
+}
+
+.home-cover-tagline {
+  animation: polish-fade-up 620ms cubic-bezier(0.32, 0.72, 0, 1) both !important;
+  animation-delay: 240ms !important;
+}
+
+.home-cover-actions {
+  animation: polish-fade-up 660ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation-delay: 320ms;
+}
+
+.home-cover-actions div {
+  position: relative;
+  transition:
+    background var(--transition-fast),
+    transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+  cursor: default;
+}
+
+.home-cover-actions div:hover {
+  background: rgba(127, 204, 94, 0.06);
+}
+
+.home-cover-actions div:hover svg {
+  animation: polish-icon-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.home-start-btn {
+  animation:
+    polish-fade-up 640ms cubic-bezier(0.32, 0.72, 0, 1) both,
+    polish-aura 2800ms ease-in-out 800ms infinite;
+  animation-delay: 440ms, 800ms;
+}
+
+.home-start-btn:hover {
+  animation-play-state: paused;
+  transform: translateY(-2px) scale(1.02);
+}
+
+.home-start-btn svg {
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.home-start-btn:hover svg {
+  transform: translateX(2px) scale(1.05);
+}
+
+/* ── BU Selection hero text staggered entrance ─────────────────────── */
+.bu-selection-hero-eyebrow {
+  animation: polish-fade-up 520ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation-delay: 60ms;
+}
+
+.bu-selection-hero h1,
+.bu-selection-hero-text h1 {
+  animation: polish-fade-up 560ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation-delay: 140ms;
+}
+
+.bu-selection-hero p,
+.bu-selection-hero-text p {
+  animation: polish-fade-up 560ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation-delay: 220ms;
+}
+
+/* ── Upload zone breathing border + entrance ────────────────────────── */
+.upload-zone {
+  animation: polish-fade-up 520ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.upload-zone:not(.dragging) {
+  animation:
+    polish-fade-up 520ms cubic-bezier(0.32, 0.72, 0, 1) both,
+    upload-zone-breathe 3200ms ease-in-out 600ms infinite;
+}
+
+@keyframes upload-zone-breathe {
+  0%, 100% { border-color: var(--border-medium); }
+  50%      { border-color: var(--accent-400, var(--accent-500)); }
+}
+
+.upload-zone.dragging .upload-zone-icon {
+  animation: polish-icon-pop 240ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.upload-zone .upload-zone-icon {
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── Mode-selection cards: staggered entrance + radio-check pop ─────── */
+.mode-step-hint {
+  animation: polish-fade-up 480ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.mode-card-grid .mode-card {
+  animation: polish-fade-up 560ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.mode-card-grid .mode-card:nth-child(1) { animation-delay: 100ms; }
+.mode-card-grid .mode-card:nth-child(2) { animation-delay: 200ms; }
+
+.mode-card:hover .mode-card-icon {
+  transform: scale(1.06);
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mode-card--active .mode-card-check svg {
+  animation: polish-check-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Scenario controls: stagger fields inside accordion when expanded ── */
+.bu-config-block[open] > *:not(summary) {
+  animation: polish-fade-up 380ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* ── Stage nav: chevron slide on hover ──────────────────────────────── */
+.stage-nav-btn {
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.stage-nav-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.stage-nav-btn svg {
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.stage-nav-btn--prev:not(:disabled):hover svg { transform: translateX(-3px); }
+.stage-nav-btn--next:not(:disabled):hover svg { transform: translateX(3px); }
+
+/* Reduced-motion: opt out of all decorative polish animations */
+@media (prefers-reduced-motion: reduce) {
+  .home-cover-logo,
+  .home-cover-title h1,
+  .home-cover-title p,
+  .home-cover-tagline,
+  .home-cover-actions,
+  .home-start-btn,
+  .bu-selection-hero-eyebrow,
+  .bu-selection-hero h1,
+  .bu-selection-hero p,
+  .bu-selection-hero-text h1,
+  .bu-selection-hero-text p,
+  .upload-zone,
+  .mode-step-hint,
+  .mode-card-grid .mode-card,
+  .mode-card--active .mode-card-check svg,
+  .bu-config-block[open] > *:not(summary) {
+    animation: none !important;
+  }
+  .upload-zone:not(.dragging) { animation: none !important; }
+  .home-cover-actions div:hover svg,
+  .upload-zone.dragging .upload-zone-icon { animation: none !important; }
 }
