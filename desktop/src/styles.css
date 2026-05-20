@@ -7069,6 +7069,11 @@ html {
    Rate uses the in-house workforce as the denominator (Nitaqat formula,
    matches the bug fix from commit 5b03edc — outsourced excluded).      */
 .saudization-caption {
+  /* z-index/position needed because .output-summary-card::after is a decorative
+     striped pseudo-element drawn over the bottom 30% of the card and would
+     otherwise overlay this caption (which sits at the bottom of the breakdown col). */
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 14px;
