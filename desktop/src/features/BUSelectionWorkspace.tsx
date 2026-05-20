@@ -62,107 +62,48 @@ export function BUSelectionWorkspace({ activeBU, onUse, onConfigure }: Props) {
   return (
     <div className="bu-selection">
       <header className="bu-selection-hero">
-        <div className="bu-selection-hero-content">
-          <div className="bu-selection-hero-mark">
-            <img src={cpcHolding} alt="CPC Holding" />
-          </div>
-          <div className="bu-selection-hero-text">
-            <span className="bu-selection-hero-eyebrow">CPC Holding Group</span>
-            <h1>Choose your Business Unit</h1>
-            <p>
-              Select the BU you want to optimize. Each has its own configuration that
-              you can review or customize via Excel.
-            </p>
-          </div>
-        </div>
+        <img className="bu-selection-hero-mark" src={cpcHolding} alt="CPC Holding" />
+        <h1>Choose a Business Unit</h1>
       </header>
 
       <div className="bu-grid" role="list">
         {BUSINESS_UNITS.map((bu, idx) => {
           const isSelected = activeBU === bu.code;
-          const hasCustomConfig = customConfiguredBUs.has(bu.code);
           const shortName = bu.code.replace(/_/g, " ");
+          // hasCustomConfig is intentionally not surfaced — that's a Configure-panel concern.
+          customConfiguredBUs.has(bu.code);
           return (
             <article
               key={bu.code}
               role="listitem"
-              className={`bu-card bu-card--compact${hasCustomConfig ? " bu-card--custom" : " bu-card--defaults"}${
-                isSelected ? " bu-card--selected" : ""
-              }`}
+              className={`bu-tile${isSelected ? " bu-tile--selected" : ""}`}
               style={{ animationDelay: `${idx * 50}ms` } as React.CSSProperties}
             >
-              <span className="bu-card-rail" aria-hidden />
-
-              <div className="bu-card-logo">
+              <button
+                type="button"
+                className="bu-tile-body"
+                onClick={() => onUse(bu.code)}
+                aria-pressed={isSelected}
+                aria-label={isSelected ? `Continue with ${bu.name}` : `Use ${bu.name}`}
+              >
                 {bu.logoSrc ? (
                   <img src={bu.logoSrc} alt={bu.name} />
                 ) : (
-                  <span className="bu-card-logo-placeholder-code">{shortName}</span>
+                  <span className="bu-tile-placeholder">{shortName}</span>
                 )}
-              </div>
-
-              <div className="bu-card-side">
-                <div className="bu-card-meta-row">
-                  <span
-                    className={`bu-card-meta-status bu-card-meta-status--${hasCustomConfig ? "custom" : "defaults"}`}
-                    title={hasCustomConfig ? "Custom configuration" : "Using tool defaults"}
-                  >
-                    <span className="bu-card-meta-dot" aria-hidden />
-                    {hasCustomConfig ? "Custom" : "Defaults"}
-                  </span>
-                  {isSelected && (
-                    <span className="bu-card-active-flag" aria-label="Currently selected">
-                      <svg viewBox="0 0 12 12" fill="none" aria-hidden>
-                        <path
-                          d="M2.5 6.5l2.5 2.5 5-5.5"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      Active
-                    </span>
-                  )}
-                </div>
-
-                <div className="bu-card-actions">
-                  <button
-                    type="button"
-                    className="bu-card-action bu-card-action--configure"
-                    onClick={() => onConfigure(bu.code)}
-                    aria-label={`Configure ${bu.name}`}
-                  >
-                    <svg viewBox="0 0 16 16" fill="none" aria-hidden>
-                      <path
-                        d="M11.5 2.5l2 2-7 7-2.5.5.5-2.5 7-7z"
-                        stroke="currentColor"
-                        strokeWidth="1.4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    Configure
-                  </button>
-                  <button
-                    type="button"
-                    className="bu-card-action bu-card-action--use"
-                    onClick={() => onUse(bu.code)}
-                    aria-pressed={isSelected}
-                    aria-label={`Use ${bu.name}`}
-                  >
-                    {isSelected ? "Continue" : "Use this BU"}
-                    <svg viewBox="0 0 16 16" fill="none" aria-hidden>
-                      <path
-                        d="M3 8h10m0 0L9 4m4 4l-4 4"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
+              </button>
+              <div className="bu-tile-foot">
+                <button
+                  type="button"
+                  className="bu-tile-foot-configure"
+                  onClick={() => onConfigure(bu.code)}
+                  aria-label={`Configure ${bu.name}`}
+                >
+                  Configure
+                </button>
+                <span className="bu-tile-foot-arrow" aria-hidden>
+                  {isSelected ? "✓" : "→"}
+                </span>
               </div>
             </article>
           );

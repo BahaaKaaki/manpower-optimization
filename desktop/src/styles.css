@@ -5973,20 +5973,17 @@ textarea:focus-visible {
    BU Selection v2: polished hero + card grid (replaces .bu-tile)
    ══════════════════════════════════════════════════════════════════ */
 
-/* ── BU Selection Hero (compact for laptop viewport) ────────────────── */
+/* ── BU Selection Hero (Plan-agent design — minimal mark + title) ──── */
 .bu-selection-hero {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
-  background:
-    radial-gradient(circle at 0% 100%, rgba(80, 156, 53, 0.10), transparent 55%),
-    linear-gradient(135deg, #ffffff 0%, #f7faf6 100%);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 2px 6px rgba(14, 20, 32, 0.04);
-  margin-bottom: 12px;
-  position: relative;
-  overflow: hidden;
+  gap: 16px;
+  height: 80px;
+  padding: 0 4px;
+  margin-bottom: 18px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 /* Faint decorative grid pattern in the corner */
@@ -6014,55 +6011,19 @@ textarea:focus-visible {
 
 .bu-selection-hero-mark {
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-surface);
-  border: 1px solid var(--accent-100);
-  border-radius: var(--radius-md);
-  padding: 6px;
-  box-shadow: 0 2px 6px rgba(14, 20, 32, 0.06);
-}
-
-.bu-selection-hero-mark img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
 }
 
-.bu-selection-hero-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.bu-selection-hero-eyebrow {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent-700);
-}
-
-.bu-selection-hero-text h1 {
+.bu-selection-hero h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 600;
   color: var(--text-primary);
   line-height: 1.2;
   letter-spacing: -0.01em;
-}
-
-.bu-selection-hero-text p {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  max-width: 540px;
 }
 
 /* Stats strip on the right of the hero */
@@ -6132,12 +6093,11 @@ textarea:focus-visible {
   }
 }
 
-/* Card grid: 9 BUs in a clean 3×3 on desktop, 2-col on tablet, 1-col on phone.
-   Tight 10px gap so the whole 3×3 grid + hero fits in a laptop viewport. */
+/* 3×3 grid sized so 9 tiles + hero fit in a 1366×768 laptop viewport */
 .bu-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
 }
 
 @media (max-width: 1100px) {
@@ -6150,6 +6110,172 @@ textarea:focus-visible {
   .bu-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BU Tile (Plan-agent design)
+   Composition:
+     [          LOGO WELL          ]   <- 148px tall, click → Use
+     [ Configure              →   ]    <- 36px foot-strip
+   Total tile height: 184px. Selected state uses a 3px left rail + faint
+   green wash + green arrow chip (no pills, no badges).
+   ═══════════════════════════════════════════════════════════════════════ */
+.bu-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 184px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(14, 20, 32, 0.04);
+  opacity: 0;
+  animation: bu-tile-enter 380ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  transition:
+    transform 240ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 240ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 200ms ease;
+}
+
+@keyframes bu-tile-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bu-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(14, 20, 32, 0.08);
+  border-color: var(--accent-200, var(--accent-100));
+}
+
+/* Logo well — the primary click target for Use */
+.bu-tile-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  transition: background 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.bu-tile-body:hover { background: #fcfcfc; }
+
+.bu-tile-body:focus-visible {
+  outline: 3px solid var(--accent-500);
+  outline-offset: -3px;
+}
+
+.bu-tile-body img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.04));
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.bu-tile:hover .bu-tile-body img {
+  transform: scale(1.03);
+}
+
+.bu-tile-placeholder {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Foot-strip — minimal chrome, just text + arrow. Configure (left) is a
+   typographically demoted click target; the arrow on the right is the
+   visual cue that the tile body is the main action. */
+.bu-tile-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  height: 36px;
+  background: #fafafa;
+  border-top: 1px solid var(--border-light);
+}
+
+.bu-tile-foot-configure {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--transition-fast), text-decoration-color var(--transition-fast);
+  text-decoration: underline 1px transparent;
+  text-underline-offset: 3px;
+}
+
+.bu-tile-foot-configure:hover {
+  color: var(--text-primary);
+  text-decoration-color: currentColor;
+}
+
+.bu-tile-foot-configure:focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.bu-tile-foot-arrow {
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-muted);
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1), color var(--transition-fast);
+}
+
+.bu-tile:hover .bu-tile-foot-arrow {
+  transform: translateX(4px);
+}
+
+/* Selected state — accent rail + faint green wash + green arrow chip */
+.bu-tile--selected {
+  border-color: var(--accent-500);
+  box-shadow:
+    inset 3px 0 0 var(--accent-600),
+    0 4px 12px rgba(80, 156, 53, 0.12);
+}
+
+.bu-tile--selected .bu-tile-body { background: #f1f8ee; }
+.bu-tile--selected:hover .bu-tile-body { background: #ebf5e6; }
+
+.bu-tile--selected .bu-tile-foot-configure { color: var(--accent-700); }
+
+.bu-tile--selected .bu-tile-foot-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-600);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(80, 156, 53, 0.30);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bu-tile { animation: none; opacity: 1; }
+  .bu-tile:hover { transform: none; }
+  .bu-tile:hover .bu-tile-body img { transform: none; }
+  .bu-tile:hover .bu-tile-foot-arrow { transform: none; }
 }
 
 .bu-card {
