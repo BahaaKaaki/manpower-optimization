@@ -198,6 +198,19 @@ def _style_header_row(ws, row=1):
         cell.alignment = Alignment(vertical="center", horizontal="left")
 
 
+_EXAMPLE_FONT = Font(italic=True, color="8a96a3")
+
+
+def _append_example_row(ws, *values: Any):
+    """Append a row formatted as an editable example (italic + muted grey).
+    Used in skeleton sheets so the consultant has a format hint they can
+    overwrite with their own data."""
+    ws.append(list(values))
+    last_row = ws.max_row
+    for col_idx in range(1, len(values) + 1):
+        ws.cell(row=last_row, column=col_idx).font = _EXAMPLE_FONT
+
+
 def _build_readme_sheet(ws, bu_code: str, bu_name: str | None, is_empty: bool):
     ws.title = "README"
     ws["A1"] = "Business Unit"
@@ -206,16 +219,20 @@ def _build_readme_sheet(ws, bu_code: str, bu_name: str | None, is_empty: bool):
     ws["B2"] = bu_name or ""
     if is_empty:
         instructions = (
-            "Starter workbook for a fresh BU. The six configuration sheets are pre-filled with "
-            "the tool's defaults so you have a complete reference to edit.\n\n"
-            "• Profession Mapping — translates raw profession names to standardized ones\n"
-            "• Activity Mapping — translates raw location/area names to standardized activities\n"
-            "• Job Families — maps each (activity, profession) pair to a canonical job family, and "
-            "sets that family's outsourceability\n"
-            "• Ratios — maximum supervisor:worker ratio per supervisor family\n"
-            "• Drivers — which Activity + Profession rows count toward each supervisor's driver value\n"
-            "• Cost Assumptions — Saudi pay premium and outsource cost discount for this BU\n\n"
-            "Edit any value, save the file, and upload it back."
+            f"Skeleton workbook for {bu_code}. The mapping sheets are EMPTY (with a couple of "
+            f"italic example rows for guidance). Fill them in with the values for THIS BU.\n\n"
+            "Workflow (matches the consultant's original approach):\n"
+            "  1) Profession Mapping — list every unique raw profession from your payroll and "
+            "map it to a standardized profession name.\n"
+            "  2) Activity Mapping — same, for raw location/area names.\n"
+            "  3) Job Families — for each unique (standardized Activity, standardized Profession) "
+            "pair, pick which canonical job family it belongs to and set the outsourceability.\n"
+            "  4) Ratios — set the max supervisor:worker ratio for each supervisor family.\n"
+            "  5) Drivers — list which (Activity, Profession) pairs count toward each supervisor.\n"
+            "  6) Cost Assumptions — Saudi pay premium + outsource cost discount.\n\n"
+            "Anything left blank falls back to the tool's defaults at engine time. The Job Families "
+            "sheet includes a side reference of the canonical family names + their default "
+            "outsourceability so you know which families to route your pairs into."
         )
     else:
         instructions = (
@@ -225,7 +242,7 @@ def _build_readme_sheet(ws, bu_code: str, bu_name: str | None, is_empty: bool):
     ws["A4"] = instructions
     ws["A4"].alignment = Alignment(wrap_text=True, vertical="top")
     ws["A4"].font = _INSTRUCTION_FONT
-    ws.merge_cells("A4:E14")
+    ws.merge_cells("A4:E18")
     ws.column_dimensions["A"].width = 24
     ws.column_dimensions["B"].width = 40
 
@@ -233,29 +250,61 @@ def _build_readme_sheet(ws, bu_code: str, bu_name: str | None, is_empty: bool):
 def _build_profession_mapping_sheet(ws, config: BUConfigurationPayload):
     ws.append(["Raw Profession", "Standardized Profession"])
     _style_header_row(ws)
-    # Always overlay user-saved entries on top of hardcoded defaults so the consultant
-    # sees the full editing surface every time, with their changes preserved.
-    rows = {**PROFESSION_MAPPING, **config.profession_mapping}
-    for raw, standardized in sorted(rows.items()):
-        ws.append([raw, standardized])
+
+    if config.profession_mapping:
+        # Filled config — show user data merged with hardcoded defaults so the
+        # consultant has full visibility.
+        rows = {**PROFESSION_MAPPING, **config.profession_mapping}
+        for raw, standardized in sorted(rows.items()):
+            ws.append([raw, standardized])
+    else:
+        # Empty config (e.g. UAAC, FAST). Emit a skeleton: 2 example rows in italic
+        # so the user has a format hint, then plenty of blank rows to fill.
+        _append_example_row(ws, "(example) Junior Welder", "Welder")
+        _append_example_row(ws, "(example) Senior Foreman", "Foreman")
+
     ws.column_dimensions["A"].width = 32
     ws.column_dimensions["B"].width = 32
-    ws["D1"] = "What raw values from your payroll's Profession column should map to which standardized profession?"
+    ws["D1"] = (
+        "Fill this with your BU's data:\n"
+        "1) Extract the unique raw profession values from your payroll.\n"
+        "2) For each, choose a STANDARDIZED profession name.\n"
+        "3) Replace the (example) rows and add one row per raw value.\n"
+        "Blank entries fall back to the tool's defaults."
+    )
+    ws["D1"].alignment = Alignment(wrap_text=True, vertical="top")
     ws["D1"].font = _INSTRUCTION_FONT
-    ws.column_dimensions["D"].width = 80
+    ws.merge_cells("D1:E8")
+    ws.column_dimensions["D"].width = 48
+    ws.column_dimensions["E"].width = 20
 
 
 def _build_activity_mapping_sheet(ws, config: BUConfigurationPayload):
     ws.append(["Raw Activity", "Standardized Activity"])
     _style_header_row(ws)
-    rows = {**ACTIVITY_MAPPING, **config.activity_mapping}
-    for raw, standardized in sorted(rows.items()):
-        ws.append([raw, standardized])
+
+    if config.activity_mapping:
+        rows = {**ACTIVITY_MAPPING, **config.activity_mapping}
+        for raw, standardized in sorted(rows.items()):
+            ws.append([raw, standardized])
+    else:
+        _append_example_row(ws, "(example) Production Plant", "Factory")
+        _append_example_row(ws, "(example) Warehouse North", "Installation")
+
     ws.column_dimensions["A"].width = 44
     ws.column_dimensions["B"].width = 28
-    ws["D1"] = "What raw values from your payroll's Location/Working In column should map to which standardized activity?"
+    ws["D1"] = (
+        "Fill this with your BU's data:\n"
+        "1) Extract the unique raw location/area values from your payroll.\n"
+        "2) For each, choose a STANDARDIZED activity name.\n"
+        "3) Replace the (example) rows and add one row per raw value.\n"
+        "Blank entries fall back to the tool's defaults."
+    )
+    ws["D1"].alignment = Alignment(wrap_text=True, vertical="top")
     ws["D1"].font = _INSTRUCTION_FONT
-    ws.column_dimensions["D"].width = 80
+    ws.merge_cells("D1:E8")
+    ws.column_dimensions["D"].width = 48
+    ws.column_dimensions["E"].width = 20
 
 
 def _build_job_families_sheet(ws, config: BUConfigurationPayload):
@@ -267,42 +316,84 @@ def _build_job_families_sheet(ws, config: BUConfigurationPayload):
     ws.append(["Activity", "Profession", "Job Family", "Outsourceability"])
     _style_header_row(ws)
 
-    rows = {**JOB_FAMILY_MAPPING, **config.job_family_mapping}
+    # Emit data rows when there's anything to preserve: a job_family_mapping OR
+    # outsourceability_overrides. Otherwise it's a skeleton (empty BU).
+    has_data = bool(config.job_family_mapping or config.outsourceability_overrides)
 
-    for key, family in sorted(rows.items()):
-        # Hardcoded JOB_FAMILY_MAPPING has inconsistent whitespace ("Factory  - Foreman"
-        # with double-space). Normalize the display by collapsing whitespace around the dash.
-        parts = re.split(r"\s*-\s*", key, maxsplit=1)
-        if len(parts) == 2:
-            activity, profession = parts[0].strip(), parts[1].strip()
-        else:
-            activity, profession = key.strip(), ""
-        outsourceability = (
-            config.outsourceability_overrides.get(family)
-            or OUTSOURCEABILITY_RULES.get(family, "")
+    if has_data:
+        rows = {**JOB_FAMILY_MAPPING, **config.job_family_mapping}
+        for key, family in sorted(rows.items()):
+            parts = re.split(r"\s*-\s*", key, maxsplit=1)
+            if len(parts) == 2:
+                activity, profession = parts[0].strip(), parts[1].strip()
+            else:
+                activity, profession = key.strip(), ""
+            outsourceability = (
+                config.outsourceability_overrides.get(family)
+                or OUTSOURCEABILITY_RULES.get(family, "")
+            )
+            ws.append([activity, profession, family, outsourceability])
+    else:
+        # Skeleton: a couple of example rows showing the format.
+        _append_example_row(
+            ws,
+            "(example) Factory", "(example) Welder", "Skilled Labor", "Fully Outsourceable",
         )
-        ws.append([activity, profession, family, outsourceability])
+        _append_example_row(
+            ws,
+            "(example) Head Office", "(example) Accountant", "Administration", "Not Outsourceable",
+        )
 
     ws.column_dimensions["A"].width = 24
     ws.column_dimensions["B"].width = 26
     ws.column_dimensions["C"].width = 26
     ws.column_dimensions["D"].width = 26
-    ws["F1"] = "Valid Outsourceability values"
-    ws["F1"].font = _INSTRUCTION_FONT
-    for i, value in enumerate(sorted(VALID_OUTSOURCEABILITY), start=2):
-        cell = ws.cell(row=i, column=6, value=value)
-        cell.font = _INSTRUCTION_FONT
+
+    # Right-side reference: canonical Job Family names + default outsourceability.
+    # Consultants need this so they know which families to route their pairs into.
+    ws["F1"] = "Canonical Job Families (reference)"
+    ws["F1"].font = Font(bold=True, color="475264")
+    ws["G1"] = "Default Outsourceability"
+    ws["G1"].font = Font(bold=True, color="475264")
+    for i, family_name in enumerate(sorted(OUTSOURCEABILITY_RULES.keys()), start=2):
+        ws.cell(row=i, column=6, value=family_name).font = _INSTRUCTION_FONT
+        ws.cell(row=i, column=7, value=OUTSOURCEABILITY_RULES[family_name]).font = _INSTRUCTION_FONT
     ws.column_dimensions["F"].width = 28
+    ws.column_dimensions["G"].width = 26
+
+    # Below the family reference: valid outsourceability values.
+    valid_start = len(OUTSOURCEABILITY_RULES) + 3
+    ws.cell(row=valid_start, column=6, value="Valid outsourceability values:").font = Font(
+        bold=True, color="475264"
+    )
+    for i, value in enumerate(sorted(VALID_OUTSOURCEABILITY), start=valid_start + 1):
+        ws.cell(row=i, column=6, value=value).font = _INSTRUCTION_FONT
 
 
 def _build_ratios_sheet(ws, config: BUConfigurationPayload):
     ws.append(["Supervisor Family", "Value (e.g. 1:10)"])
     _style_header_row(ws)
-    rows = {**MAXIMUM_RATIO_RULES, **config.ratio_overrides}
-    for family, value in sorted(rows.items()):
-        ws.append([family, value])
+
+    # Ratios sheet always lists the canonical supervisor families (their names are
+    # universal — they're the same engine-recognized supervisor types for every BU).
+    # For a skeleton: blank Value cells so the user fills their own. For a filled
+    # config: show the saved values.
+    for family in sorted(MAXIMUM_RATIO_RULES.keys()):
+        saved = config.ratio_overrides.get(family)
+        ws.append([family, saved if saved else ""])
+
     ws.column_dimensions["A"].width = 28
     ws.column_dimensions["B"].width = 22
+    ws["D1"] = (
+        "Set the maximum supervisor:worker ratio for each supervisor family. "
+        "Format: 1:N (e.g. 1:10 means one supervisor for every 10 workers). "
+        "Blank means the tool's default applies."
+    )
+    ws["D1"].alignment = Alignment(wrap_text=True, vertical="top")
+    ws["D1"].font = _INSTRUCTION_FONT
+    ws.merge_cells("D1:E5")
+    ws.column_dimensions["D"].width = 48
+    ws.column_dimensions["E"].width = 20
 
 
 def _build_drivers_sheet(ws, config: BUConfigurationPayload):
@@ -356,6 +447,13 @@ def _cell_text(value: Any) -> str:
     return str(value).strip()
 
 
+def _is_example_value(value: str) -> bool:
+    """Skeleton sheets include italic placeholder rows that start with '(example)'.
+    The parser must ignore them so the consultant's empty BU doesn't end up with
+    fake mapping data after a re-upload."""
+    return value.startswith("(example)")
+
+
 def _parse_profession_mapping(ws, config: BUConfigurationPayload, errors: list[str]):
     """Activity/profession mapping rows are user-defined free text per BU — we don't
     enforce the standardized value matches any canonical list. We just collect every
@@ -363,7 +461,7 @@ def _parse_profession_mapping(ws, config: BUConfigurationPayload, errors: list[s
     for row in ws.iter_rows(min_row=2, values_only=True):
         raw = _cell_text(row[0] if len(row) > 0 else "")
         standardized = _cell_text(row[1] if len(row) > 1 else "")
-        if not raw or not standardized:
+        if not raw or not standardized or _is_example_value(raw):
             continue
         config.profession_mapping[raw] = standardized
 
@@ -372,7 +470,7 @@ def _parse_activity_mapping(ws, config: BUConfigurationPayload, errors: list[str
     for row in ws.iter_rows(min_row=2, values_only=True):
         raw = _cell_text(row[0] if len(row) > 0 else "")
         standardized = _cell_text(row[1] if len(row) > 1 else "")
-        if not raw or not standardized:
+        if not raw or not standardized or _is_example_value(raw):
             continue
         config.activity_mapping[raw] = standardized
 
@@ -388,6 +486,8 @@ def _parse_job_families(ws, config: BUConfigurationPayload, errors: list[str]):
         family = _cell_text(row[2] if len(row) > 2 else "")
         outsourceability = _cell_text(row[3] if len(row) > 3 else "")
         if not family:
+            continue
+        if _is_example_value(activity) or _is_example_value(profession):
             continue
         if activity or profession:
             pair_key = f"{activity} - {profession}".strip(" -")

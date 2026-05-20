@@ -1076,45 +1076,43 @@ class BUConfigurationExcelRoundTripTests(unittest.TestCase):
         self.assertEqual(parsed.saudi_cost_premium, original.saudi_cost_premium)
         self.assertEqual(parsed.outsource_cost_discount, original.outsource_cost_discount)
 
-    def test_starter_template_parses_to_hardcoded_defaults(self):
-        """For a fresh BU the starter Excel is pre-filled with the tool's hardcoded
-        defaults (so the consultant always has a complete reference to edit). Parsing
-        the starter back yields those defaults populated."""
-        import re
+    def test_starter_template_for_empty_bu_is_skeleton_not_pre_filled(self):
+        """For a fresh BU (e.g. UAAC, FAST) the starter Excel is a SKELETON, not
+        pre-filled with MGIC's data. The mapping sheets contain only italic example
+        rows + instructions; the user fills them with values from THEIR payroll.
+        Parsing the skeleton back yields empty mapping dicts (example rows are
+        skipped by the parser) so engine falls back to hardcoded defaults."""
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
-        from manpower_app.mappings import ACTIVITY_MAPPING, JOB_FAMILY_MAPPING, PROFESSION_MAPPING
-        from manpower_app.rules import OUTSOURCEABILITY_RULES, MAXIMUM_RATIO_RULES
 
         xlsx = build_workbook("UAAC", None, BUConfigurationPayload())
         parsed, errors = parse_workbook(xlsx)
         self.assertEqual(errors, [])
-        # Mapping sheets pre-filled from hardcoded defaults
-        self.assertEqual(parsed.profession_mapping, PROFESSION_MAPPING)
-        self.assertEqual(parsed.activity_mapping, ACTIVITY_MAPPING)
-        # JOB_FAMILY_MAPPING has inconsistent whitespace ("Factory  - Foreman" with
-        # double-space). The BU Excel normalizes to single-space form.
-        expected_jfm = {
-            re.sub(r"\s*-\s*", " - ", key).strip(): value
-            for key, value in JOB_FAMILY_MAPPING.items()
-        }
-        self.assertEqual(parsed.job_family_mapping, expected_jfm)
-        # Ratios sheet pre-filled from hardcoded defaults
-        self.assertEqual(parsed.ratio_overrides, MAXIMUM_RATIO_RULES)
-        # Outsourceability (sourced from the Job Families sheet) pre-filled too
-        # — every canonical family appears with its default classification
-        self.assertEqual(
-            set(parsed.outsourceability_overrides.keys()),
-            set(OUTSOURCEABILITY_RULES.keys()),
-        )
+        # Profession / Activity / Job-Family mappings are empty — example rows
+        # with the "(example)" prefix were filtered out by the parser.
+        self.assertEqual(parsed.profession_mapping, {})
+        self.assertEqual(parsed.activity_mapping, {})
+        self.assertEqual(parsed.job_family_mapping, {})
+        # Outsourceability is also empty (lives inside the empty Job Families sheet)
+        self.assertEqual(parsed.outsourceability_overrides, {})
+        # Ratios sheet always lists supervisors but with blank values for empty BUs
+        self.assertEqual(parsed.ratio_overrides, {})
 
     def test_invalid_outsourceability_value_is_rejected(self):
         """Pollute one Outsourceability cell in the Job Families sheet → parser reports
-        the row-level error and never persists the bad value."""
+        the row-level error and never persists the bad value. Build a populated
+        config first so the Job Families sheet has real data rows (not skeleton)."""
         import io
         import openpyxl
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
+        from manpower_app.mappings import JOB_FAMILY_MAPPING
+        from manpower_app.rules import OUTSOURCEABILITY_RULES
 
-        xlsx = build_workbook("MGIC", None, BUConfigurationPayload())
+        # Use a populated config so the Job Families sheet has real rows.
+        populated = BUConfigurationPayload(
+            job_family_mapping=dict(JOB_FAMILY_MAPPING),
+            outsourceability_overrides=dict(OUTSOURCEABILITY_RULES),
+        )
+        xlsx = build_workbook("MGIC", None, populated)
         wb = openpyxl.load_workbook(io.BytesIO(xlsx))
         ws = wb["Job Families"]
         # Find a row whose family is Engineer (column C is Job Family, D is Outsourceability)
@@ -1148,15 +1146,15 @@ class BUConfigurationExcelRoundTripTests(unittest.TestCase):
         _, errors = parse_workbook(buf.getvalue())
         self.assertTrue(any("Quarries Foreman" in e and "1:N" in e for e in errors))
 
-    def test_starter_workbook_has_seven_sheets_with_canonical_names(self):
-        """Starter workbook for a fresh BU has 7 sheets, and the four data sheets
-        (Profession Mapping, Activity Mapping, Job Families, Ratios) are pre-filled
-        with the canonical names from manpower_app.mappings + rules so the consultant
-        has a complete reference to edit."""
+    def test_starter_workbook_for_empty_bu_is_skeleton_with_examples_only(self):
+        """Starter workbook for a fresh BU (UAAC, FAST, etc.) is a SKELETON: 7
+        sheets, all present, but the mapping sheets contain only italic example
+        rows + instructions — NOT pre-filled with MGIC's data. Ratios sheet still
+        lists the canonical supervisor families (they're universal) but with
+        blank values for the user to fill."""
         import io
         import openpyxl
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook
-        from manpower_app.mappings import ACTIVITY_MAPPING, JOB_FAMILY_MAPPING, PROFESSION_MAPPING
         from manpower_app.rules import MAXIMUM_RATIO_RULES
 
         xlsx = build_workbook("UAAC", None, BUConfigurationPayload())
@@ -1173,29 +1171,40 @@ class BUConfigurationExcelRoundTripTests(unittest.TestCase):
                 "Cost Assumptions",
             ],
         )
-        # Profession Mapping has every raw key from PROFESSION_MAPPING
-        prof_raw = {row[0] for row in wb["Profession Mapping"].iter_rows(min_row=2, values_only=True) if row[0]}
-        self.assertEqual(prof_raw, set(PROFESSION_MAPPING.keys()))
-        # Activity Mapping has every raw key from ACTIVITY_MAPPING
-        act_raw = {row[0] for row in wb["Activity Mapping"].iter_rows(min_row=2, values_only=True) if row[0]}
-        self.assertEqual(act_raw, set(ACTIVITY_MAPPING.keys()))
-        # Job Families covers every canonical (activity, profession) pair from JOB_FAMILY_MAPPING.
-        # The starter normalizes hardcoded keys with inconsistent whitespace ("Factory  - Foreman"
-        # → "Factory - Foreman") so the consultant sees clean rows.
-        import re
-        expected_pairs = {
-            re.sub(r"\s*-\s*", " - ", key).strip()
-            for key in JOB_FAMILY_MAPPING.keys()
+        # Profession Mapping: only the 2 (example) rows, no real raw values
+        prof_rows = [
+            row[0] for row in wb["Profession Mapping"].iter_rows(min_row=2, values_only=True)
+            if row[0]
+        ]
+        self.assertTrue(all(str(r).startswith("(example)") for r in prof_rows), prof_rows)
+        # Activity Mapping: same — only example rows
+        act_rows = [
+            row[0] for row in wb["Activity Mapping"].iter_rows(min_row=2, values_only=True)
+            if row[0]
+        ]
+        self.assertTrue(all(str(r).startswith("(example)") for r in act_rows), act_rows)
+        # Job Families: only example rows in the main 4-column data area
+        jf_data_rows = [
+            (row[0], row[1])
+            for row in wb["Job Families"].iter_rows(min_row=2, max_col=4, values_only=True)
+            if row[0]
+        ]
+        self.assertTrue(
+            all(str(r[0]).startswith("(example)") for r in jf_data_rows), jf_data_rows
+        )
+        # Ratios sheet still lists every canonical supervisor family (those names
+        # are universal) — but their Value cells are blank for the user to fill.
+        ratio_names = {
+            row[0] for row in wb["Ratios"].iter_rows(min_row=2, values_only=True) if row[0]
         }
-        jf_pairs = {
-            f"{row[0]} - {row[1]}"
-            for row in wb["Job Families"].iter_rows(min_row=2, values_only=True)
-            if row[0] and row[1]
-        }
-        self.assertEqual(jf_pairs, expected_pairs)
-        # Ratios has every supervisor from MAXIMUM_RATIO_RULES
-        ratio_names = {row[0] for row in wb["Ratios"].iter_rows(min_row=2, values_only=True) if row[0]}
         self.assertEqual(ratio_names, set(MAXIMUM_RATIO_RULES.keys()))
+        ratio_values = [
+            row[1] for row in wb["Ratios"].iter_rows(min_row=2, values_only=True) if row[0]
+        ]
+        self.assertTrue(
+            all(v in (None, "") for v in ratio_values),
+            f"Empty BU ratios should have blank values, got: {ratio_values}",
+        )
 
 
 class EndToEndUserJourneyTests(unittest.TestCase):
@@ -1549,19 +1558,25 @@ class ExcelValidationEdgeCases(unittest.TestCase):
     def test_mixed_valid_and_invalid_rows_returns_errors_and_no_partial_save(self):
         """When some rows in the Job Families sheet have an invalid Outsourceability
         value, the parser reports errors and the invalid row is NOT promoted to the
-        outsourceability_overrides dict. Valid rows are still parsed."""
+        outsourceability_overrides dict. Valid rows are still parsed.
+
+        Build with a populated config so the Job Families sheet has real data rows
+        (vs the skeleton that ships for empty BUs)."""
         import io
         import openpyxl
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
+        from manpower_app.mappings import JOB_FAMILY_MAPPING
 
-        # Start fresh: empty payload so the JF sheet has the starter (canonical defaults)
-        # with each family's outsourceability filled. Then corrupt one row and accept another.
-        xlsx = build_workbook("MGIC", None, BUConfigurationPayload())
+        populated = BUConfigurationPayload(
+            job_family_mapping=dict(JOB_FAMILY_MAPPING),
+        )
+        xlsx = build_workbook("MGIC", None, populated)
         wb = openpyxl.load_workbook(io.BytesIO(xlsx))
         ws = wb["Job Families"]
         # Clear ALL outsourceability cells first so we test JUST the rows we touch.
         for row in ws.iter_rows(min_row=2):
-            row[3].value = ""
+            if row[2].value:  # only clear actual data rows, not the right-side reference cols
+                row[3].value = ""
         # Find an Engineer row and corrupt it
         for row in ws.iter_rows(min_row=2):
             if row[2].value == "Engineer":
