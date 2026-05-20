@@ -92,6 +92,9 @@ export type AssumptionDefaults = {
   outsourceability: Record<string, string>;
   max_ratios: Record<string, string>;
   drivers: Record<string, { activity: string; profession: string }[]>;
+  profession_mapping: Record<string, string>;
+  activity_mapping: Record<string, string>;
+  job_family_mapping: Record<string, string>;
 };
 
 export async function fetchAssumptionDefaults() {
@@ -151,11 +154,18 @@ export async function importBUConfiguration(file: File): Promise<BUConfiguration
   return parseResponse<BUConfigurationImportResponse>(response, "Import failed.");
 }
 
-export async function uploadWorkbook(file: File, customFamilies: CustomFamilySpec[] = []) {
+export async function uploadWorkbook(
+  file: File,
+  customFamilies: CustomFamilySpec[] = [],
+  buConfiguration: unknown = null,
+) {
   const formData = new FormData();
   formData.append("file", file);
   if (customFamilies.length > 0) {
     formData.append("custom_families", JSON.stringify(customFamilies));
+  }
+  if (buConfiguration && typeof buConfiguration === "object") {
+    formData.append("bu_configuration", JSON.stringify(buConfiguration));
   }
   const apiBase = await getApiBase();
   const response = await fetch(`${apiBase}/workbooks/upload`, {

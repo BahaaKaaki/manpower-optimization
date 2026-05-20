@@ -119,6 +119,21 @@ def _custom_families_from_json(payload: str | None) -> list[CustomFamilySpec]:
     return specs
 
 
+def _bu_configuration_from_json(payload: str | None) -> BUConfigurationPayload:
+    """Decode a JSON-string BUConfigurationPayload dict from a multipart form field."""
+    if not payload:
+        return BUConfigurationPayload()
+    try:
+        raw = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"bu_configuration JSON malformed: {exc}"
+        ) from exc
+    if not isinstance(raw, dict):
+        raise HTTPException(status_code=400, detail="bu_configuration must be a JSON object.")
+    return BUConfigurationPayload.from_dict(raw)
+
+
 class OptimizationSettingsRequest(BaseModel):
     enforce_saudization: bool = True
     saudization_rate: float = Field(default=0.30, ge=0, le=1)
@@ -138,9 +153,15 @@ class OptimizationSettingsRequest(BaseModel):
     saudi_cost_premium: float = Field(default=1.10, ge=1.0, le=3.0)
     outsource_cost_discount: float | None = Field(default=None, ge=0, le=1)
     max_ratio_overrides: dict[str, str] = Field(default_factory=dict)
-    # Batch-2 BU configuration overrides. Empty defaults preserve historical behavior.
+    # BU configuration overrides. Empty defaults preserve historical behavior.
     outsourceability_overrides: dict[str, str] = Field(default_factory=dict)
     driver_overrides: dict[str, list[dict[str, str]]] = Field(default_factory=dict)
+    # Per-BU mapping pipeline overrides (this MR). Sourced from the BU's Excel and
+    # carried through to process_workbook so re-uploads of the same payroll can be
+    # parsed without a separate "Mappings" stage.
+    activity_mapping: dict[str, str] = Field(default_factory=dict)
+    profession_mapping: dict[str, str] = Field(default_factory=dict)
+    job_family_mapping: dict[str, str] = Field(default_factory=dict)
     optimization_mode: Literal["current", "target"] = "current"
     target_headcounts: dict[str, int] = Field(default_factory=dict)
     custom_families: list[CustomFamilySpecRequest] = Field(default_factory=list)
@@ -258,10 +279,18 @@ def assumption_defaults() -> dict[str, Any]:
         "Installation Supervisor": [{"activity": "Installation", "profession": "Foreman"}],
         "Factory Supervisor": [{"activity": "Factory", "profession": "Foreman"}],
     }
+    from manpower_app.mappings import (
+        ACTIVITY_MAPPING,
+        JOB_FAMILY_MAPPING,
+        PROFESSION_MAPPING,
+    )
     return {
         "outsourceability": dict(sorted(OUTSOURCEABILITY_RULES.items())),
         "max_ratios": dict(sorted(MAXIMUM_RATIO_RULES.items())),
         "drivers": driver_defaults,
+        "profession_mapping": dict(sorted(PROFESSION_MAPPING.items())),
+        "activity_mapping": dict(sorted(ACTIVITY_MAPPING.items())),
+        "job_family_mapping": dict(sorted(JOB_FAMILY_MAPPING.items())),
     }
 
 
@@ -338,20 +367,33 @@ def _build_upload_response(processed: ProcessedWorkbook, filename: str | None) -
 async def upload_workbook(
     file: UploadFile,
     custom_families: str | None = Form(default=None),
+    bu_configuration: str | None = Form(default=None),
 ) -> dict[str, Any]:
     """Upload a workbook and process it.
 
     ``custom_families`` is an optional JSON-encoded array of
     ``CustomFamilySpec`` objects (matches the desktop client's persisted prefs).
-    Unmapped (activity, profession) pairs are returned in ``unmapped_pairs`` rather
-    than failing the upload, so the UI can collect resolutions interactively.
+
+    ``bu_configuration`` is an optional JSON-encoded BUConfigurationPayload dict
+    with the active BU's mapping pipeline (profession, activity, job family).
+    When present, `process_workbook` uses these overrides BEFORE the hardcoded
+    defaults so a payload's raw professions/activities translate via the BU's
+    Excel. Unmapped pairs surface in the response and the UI hard-blocks until
+    the user fixes the BU's Excel and re-uploads.
     """
     custom_specs = _custom_families_from_json(custom_families)
+    bu_config = _bu_configuration_from_json(bu_configuration)
     try:
         contents = await file.read()
         store.workbook_bytes = contents
         store.workbook_filename = file.filename
-        store.processed = process_workbook(io.BytesIO(contents), custom_families=custom_specs)
+        store.processed = process_workbook(
+            io.BytesIO(contents),
+            custom_families=custom_specs,
+            activity_mapping_overrides=bu_config.activity_mapping or None,
+            profession_mapping_overrides=bu_config.profession_mapping or None,
+            job_family_mapping_overrides=bu_config.job_family_mapping or None,
+        )
         store.model_data = None
         store.model_metadata = None
         store.target_split = None

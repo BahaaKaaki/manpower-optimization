@@ -331,6 +331,68 @@ button, input, select {
   flex-shrink: 0;
 }
 
+/* Export-to-Excel CTA at the top-right of the Results topbar. Distinct from the
+   generic .btn-primary so it can carry a two-line label (action + format hint)
+   and a spreadsheet-grid glyph that reads as "Excel" without using a logo. */
+.topbar-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px 7px 11px;
+  background: linear-gradient(180deg, #f6fbf3 0%, var(--accent-50) 100%);
+  color: var(--accent-700);
+  border: 1px solid var(--accent-200, var(--accent-100));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 1px 2px rgba(80, 156, 53, 0.08);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.topbar-export-btn:hover {
+  background: linear-gradient(180deg, var(--accent-50) 0%, #ecf6e7 100%);
+  border-color: var(--accent-300, var(--accent-500));
+  box-shadow: 0 4px 14px rgba(80, 156, 53, 0.18);
+  transform: translateY(-1px);
+}
+
+.topbar-export-btn:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 1px 4px rgba(80, 156, 53, 0.18);
+}
+
+.topbar-export-btn:focus-visible {
+  outline: 3px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+.topbar-export-btn-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.topbar-export-btn-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.topbar-export-btn-sub {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-600);
+  opacity: 0.85;
+}
+
 .content-body {
   flex: 1;
   overflow-y: auto;
@@ -2226,22 +2288,54 @@ button, input, select {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr);
-  gap: 22px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
 }
 
-.output-breakdown-arrow {
-  width: 46px;
-  height: 46px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-full);
-  background: var(--accent-600);
-  color: #071008;
-  font-size: 24px;
-  font-weight: 800;
-  box-shadow: 0 10px 26px rgba(80, 156, 53, 0.26);
+/* Dark-theme overrides so the new SaudizationCard reads correctly on the dark
+   summary-card backdrop (matches the donut-card treatment below). */
+.output-breakdown-grid .saudization-card {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(127, 204, 94, 0.22);
+  color: #f6faf3;
+  box-shadow: none;
+}
+
+.output-breakdown-grid .saudization-card-value {
+  color: #ffffff;
+}
+
+.output-breakdown-grid .saudization-card-eyebrow {
+  color: var(--accent-400, var(--accent-500));
+}
+
+.output-breakdown-grid .saudization-card-sub {
+  color: rgba(246, 250, 243, 0.70);
+}
+
+.output-breakdown-grid .saudization-flag-bar {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.30);
+}
+
+.output-breakdown-grid .saudization-card-delta {
+  background: rgba(127, 204, 94, 0.18);
+  color: #e8f7df;
+}
+
+.output-breakdown-grid .saudization-card-delta--down {
+  background: rgba(232, 152, 48, 0.20);
+  color: #f6d6a3;
+}
+
+.output-breakdown-grid .saudization-card-delta--flat {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(246, 250, 243, 0.70);
+}
+
+.output-breakdown-grid .output-breakdown-divider-arrow {
+  color: var(--accent-400, var(--accent-500));
 }
 
 .output-breakdown-grid .donut-card {
@@ -2448,6 +2542,48 @@ button, input, select {
   white-space: nowrap;
   overflow: hidden;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.34);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stack: bar on top, dot-chip row underneath. Replaces the inline IS/IN/O codes
+   that read ambiguously (e.g. "6 O" reading as "60"). */
+.family-mix-bar-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.family-mix-chips {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.family-mix-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.family-mix-chip::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.family-mix-chip--saudi::before { background: var(--accent-600); }
+.family-mix-chip--non-saudi::before { background: #2d66b3; }
+.family-mix-chip--outsourced::before { background: #df8930; }
+
+.family-mix-chip strong {
+  color: var(--text-primary);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -3827,9 +3963,13 @@ tbody tr:hover td:first-child {
     grid-template-columns: 1fr;
   }
 
-  .output-breakdown-arrow {
+  .output-breakdown-divider {
     justify-self: center;
+  }
+
+  .output-breakdown-divider-arrow {
     transform: rotate(90deg);
+    display: inline-block;
   }
 
   .family-recommendation-main {
@@ -4949,6 +5089,217 @@ textarea:focus-visible {
 /* Disabled rows: bump opacity from 0.5 to 0.6 for better contrast */
 .control-row--disabled {
   opacity: 0.6;
+}
+
+/* ── Upload step: hard-block on unmapped (activity, profession) pairs ─── */
+.unmapped-block {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-xl);
+  padding: 24px 28px;
+  box-shadow: var(--shadow-sm);
+}
+
+.unmapped-block-head {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.unmapped-block-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--color-warning);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unmapped-block-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.unmapped-block h3 {
+  margin: 0 0 6px 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.unmapped-block p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  max-width: 720px;
+}
+
+.unmapped-table {
+  width: 100%;
+  margin: 0 0 20px 0;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+}
+
+.unmapped-table th,
+.unmapped-table td {
+  padding: 8px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.unmapped-table thead th {
+  background: var(--bg-raised);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.unmapped-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.unmapped-table-overflow {
+  text-align: center;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.unmapped-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Logo-only BU tile variant (this MR) ────────────────────────────── */
+.bu-card--logo-only {
+  padding: 0;
+  position: relative;
+  cursor: default;
+}
+
+/* Card is no longer one giant click target — actions row owns clicks. Disable the
+   parent hover-lift cursor so it doesn't suggest the tile itself is clickable. */
+.bu-card--logo-only:hover:not(:disabled) {
+  transform: translateY(-3px);
+}
+
+.bu-card--logo-only .bu-card-logo {
+  height: 120px;
+  margin: 14px 18px 6px 18px;
+}
+
+/* "Active" badge — replaces the discreet selected-state outline with a visible chip */
+.bu-card-selected-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px 3px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent-700);
+  border-radius: var(--radius-full);
+  box-shadow: 0 2px 6px rgba(80, 156, 53, 0.35);
+  z-index: 2;
+}
+
+.bu-card-selected-badge svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* Twin-action footer: Configure (secondary) + Use (primary), both clearly labeled */
+.bu-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-top: 1px solid var(--border-light);
+  margin-top: 12px;
+}
+
+.bu-card-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: none;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    transform 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.bu-card-action svg {
+  width: 13px;
+  height: 13px;
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.bu-card-action--configure {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border-light);
+}
+
+.bu-card-action--configure:hover {
+  background: var(--accent-50);
+  color: var(--accent-700);
+}
+
+.bu-card-action--use {
+  background: var(--accent-700);
+  color: #fff;
+}
+
+.bu-card-action--use:hover {
+  background: var(--accent-800, #2c5b1f);
+}
+
+.bu-card-action--use:hover svg {
+  transform: translateX(3px);
+}
+
+.bu-card-action:focus-visible {
+  outline: 3px solid var(--accent-500);
+  outline-offset: -3px;
+  position: relative;
+  z-index: 1;
+}
+
+/* When this BU is the active one, the Use button reads "Continue" — make it
+   slightly distinct (filled accent stays, but add a subtle pulse hint) */
+.bu-card--selected .bu-card-action--use {
+  background: linear-gradient(135deg, var(--accent-700), var(--accent-600));
+}
+
+.bu-card--selected .bu-card-action--use::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -6114,54 +6465,310 @@ html {
   font-size: 11px;
 }
 
-/* Output: pre/post Saudization caption under donuts */
+/* Output: each donut + Saudization card pair stacks vertically inside the column */
 .output-breakdown-col {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  align-items: stretch;
+  gap: 14px;
+  min-width: 0;
 }
 
-.output-saudization-caption {
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.output-saudization-caption strong {
-  color: var(--text-primary);
-  font-size: 14px;
-}
-
-/* Output: family-mix legend (IS / IN / O) */
-.family-mix-legend {
+/* Saudization hero card — flag-stripe progress bar, big %, delta pill */
+.saudization-card {
   display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
-  background: var(--bg-raised);
-  border-radius: var(--radius-md);
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 10px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-100);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  box-shadow: var(--shadow-sm);
 }
 
-.family-mix-legend-item {
+.saudization-card-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-700);
+}
+
+.saudization-card-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.saudization-card-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent-700);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.saudization-card-delta {
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: var(--accent-50);
+  color: var(--accent-700);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.saudization-card-delta--down {
+  background: rgba(232, 152, 48, 0.12);
+  color: #c47318;
+}
+
+.saudization-card-delta--flat {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+
+.saudization-flag-bar {
+  position: relative;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--bg-raised);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.saudization-flag-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-700), var(--accent-600));
+  border-radius: 7px;
+  transform-origin: left center;
+  animation: saudization-fill 700ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* Thin white stripes at the leading edge — evokes the Saudi flag without a PNG */
+.saudization-flag-bar-fill::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 24%;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.42) 0 1.5px,
+    transparent 1.5px 9px
+  );
+  border-radius: 7px 0 0 7px;
+}
+
+@keyframes saudization-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saudization-flag-bar-fill { animation: none; }
+}
+
+.saudization-card-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ── Saudization Hero ─────────────────────────────────────────────────
+   Full-width hero panel above the donut breakdown. Promotes Saudization
+   from a footnote under the donuts to the first thing the eye lands on.
+   Lives inside the dark .output-summary-card; uses lighter accent treatment
+   so it stands above the surrounding container. */
+.saudization-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 26px;
+  align-items: center;
+  padding: 22px 26px;
+  margin: 4px 0;
+  background:
+    linear-gradient(135deg, rgba(80, 156, 53, 0.14) 0%, rgba(56, 117, 35, 0.22) 100%),
+    radial-gradient(circle at 0% 0%, rgba(127, 204, 94, 0.20), transparent 60%);
+  border: 1px solid rgba(127, 204, 94, 0.28);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow:
+    0 14px 28px rgba(14, 20, 32, 0.18),
+    0 2px 4px rgba(14, 20, 32, 0.10),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  isolation: isolate;
+  animation: saudization-hero-enter 520ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes saudization-hero-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saudization-hero { animation: none; }
+}
+
+/* Decorative flag-stripe motif diagonal in the top-right corner */
+.saudization-hero-motif {
+  position: absolute;
+  inset: -20px -20px auto auto;
+  width: 200px;
+  height: 200px;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.07) 0 1px,
+    transparent 1px 18px
+  );
+  pointer-events: none;
+  opacity: 0.6;
+  z-index: 0;
+}
+
+.saudization-hero-ring-wrap {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+}
+
+.saudization-hero-ring {
+  display: block;
+  filter: drop-shadow(0 6px 14px rgba(127, 204, 94, 0.24));
+}
+
+.saudization-hero-ring-outer {
+  transition: stroke-dashoffset 800ms cubic-bezier(0.32, 0.72, 0, 1);
+  animation: saudization-hero-ring-grow 900ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes saudization-hero-ring-grow {
+  from { stroke-dashoffset: 402; }  /* approx CIRC_OUTER */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saudization-hero-ring-outer { animation: none; }
+}
+
+.saudization-hero-ring-inner {
+  opacity: 0.85;
+}
+
+.saudization-hero-ring-value {
+  font-family: var(--font-display, inherit);
+  font-size: 28px;
+  font-weight: 700;
+  fill: #ffffff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.saudization-hero-ring-caption {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: rgba(246, 250, 243, 0.62);
+}
+
+.saudization-hero-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.saudization-hero-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--accent-300, #b1de9a);
+}
+
+.saudization-hero-headline {
+  margin: 0;
+  font-size: clamp(20px, 2.6vw, 26px);
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+}
+
+.saudization-hero-delta {
+  align-self: flex-start;
+  padding: 4px 11px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(127, 204, 94, 0.20);
+  color: #d5edc4;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
-.family-mix-legend-item strong {
-  color: var(--text-primary);
+.saudization-hero-delta--down {
+  background: rgba(232, 152, 48, 0.22);
+  color: #f6d6a3;
+}
+
+.saudization-hero-delta--flat {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(246, 250, 243, 0.72);
+}
+
+.saudization-hero-sub {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(246, 250, 243, 0.78);
+  line-height: 1.5;
+}
+
+.saudization-hero-sub strong {
+  color: #ffffff;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.family-mix-legend-swatch {
-  width: 18px;
-  height: 12px;
-  border-radius: 3px;
-  display: inline-block;
+@media (max-width: 720px) {
+  .saudization-hero {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    padding: 20px;
+  }
+  .saudization-hero-body { align-items: center; }
+  .saudization-hero-delta { align-self: center; }
+}
+
+/* Minimal divider between Current/Optimized donuts. The Saudization story lives
+   in the SaudizationHero above, so this just provides a visual "before → after"
+   cue between the two manpower-mix donuts. */
+.output-breakdown-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+.output-breakdown-divider-arrow {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--accent-600);
+  font-weight: 700;
 }
 
 /* Mapping: map-to-existing-family inline picker */

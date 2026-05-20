@@ -2,7 +2,7 @@ import type { DragEvent } from "react";
 
 import { MetricCard } from "../components/MetricCard";
 import { SectionHeader } from "../components/SectionHeader";
-import type { BusyAction, UploadResponse } from "../types";
+import type { BusyAction, UnmappedPair, UploadResponse } from "../types";
 import { formatNumber } from "../utils/format";
 
 type UploadWorkspaceProps = {
@@ -19,6 +19,9 @@ type UploadWorkspaceProps = {
   restoredResultsAvailable: boolean;
   onRestoreResults: () => void;
   debugEnabled: boolean;
+  unmappedPairs: UnmappedPair[];
+  activeBUName: string | null;
+  onOpenBUConfiguration: () => void;
 };
 
 function ValidationFeedback({ error, onRetry }: { error: string; onRetry: () => void }) {
@@ -103,9 +106,13 @@ export function UploadWorkspace({
   restoredResultsAvailable,
   onRestoreResults,
   debugEnabled,
+  unmappedPairs,
+  activeBUName,
+  onOpenBUConfiguration,
 }: UploadWorkspaceProps) {
   const totalWorkforce = (uploadInfo?.inhouse_count ?? 0) + (uploadInfo?.subcontractor_count ?? 0);
   const modelRows = uploadInfo?.model_input_count ?? uploadInfo?.model_input?.length ?? 0;
+  const hasUnmapped = unmappedPairs.length > 0;
 
   if (!uploadInfo) {
     return (
@@ -167,6 +174,76 @@ export function UploadWorkspace({
             </div>
           )}
 
+        </div>
+      </section>
+    );
+  }
+
+  if (hasUnmapped) {
+    return (
+      <section className="upload-stage">
+        <input ref={fileInputRef} className="file-input" type="file" accept=".xlsx" onChange={onFileChange} />
+        <div className="unmapped-block">
+          <div className="unmapped-block-head">
+            <div className="unmapped-block-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 8v5m0 4h.01M3.07 19h17.86c1.1 0 1.79-1.18 1.25-2.13L13.25 4.23c-.55-.95-1.95-.95-2.5 0L1.82 16.87c-.54.95.16 2.13 1.25 2.13z"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div>
+              <h3>This payroll uses {unmappedPairs.length} role{unmappedPairs.length === 1 ? "" : "s"} {activeBUName ?? "this BU"} hasn't configured yet</h3>
+              <p>
+                Add the missing rows to <strong>{activeBUName ?? "the BU"}</strong>'s configuration
+                Excel — in the <strong>Job Families</strong> sheet (and the <strong>Profession Mapping</strong>
+                or <strong>Activity Mapping</strong> sheets if the raw values differ from the standard
+                ones). Then upload the updated Excel and try this payroll again.
+              </p>
+            </div>
+          </div>
+          <table className="unmapped-table">
+            <thead>
+              <tr>
+                <th>Activity (from payroll)</th>
+                <th>Profession (from payroll)</th>
+                <th>Rows</th>
+              </tr>
+            </thead>
+            <tbody>
+              {unmappedPairs.slice(0, 20).map((pair) => (
+                <tr key={`${pair.activity}|${pair.profession}`}>
+                  <td>{pair.activity}</td>
+                  <td>{pair.profession}</td>
+                  <td>{pair.count}</td>
+                </tr>
+              ))}
+              {unmappedPairs.length > 20 ? (
+                <tr>
+                  <td colSpan={3} className="unmapped-table-overflow">
+                    + {unmappedPairs.length - 20} more
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+          <div className="unmapped-actions">
+            <button className="btn btn-primary" type="button" onClick={onOpenBUConfiguration}>
+              Open BU Configuration
+            </button>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!apiReady || busyAction === "upload"}
+            >
+              {busyAction === "upload" ? <><span className="spinner" /> Processing...</> : "Upload a different payroll"}
+            </button>
+          </div>
         </div>
       </section>
     );

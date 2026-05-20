@@ -127,7 +127,6 @@ export type AppStage =
   | "home"
   | "bu-selection"
   | "upload"
-  | "mappings"
   | "mode"
   | "ready"
   | "results";
@@ -151,9 +150,15 @@ export type BusinessUnit = {
 };
 
 export type BUConfiguration = {
+  // Mapping pipeline overrides (new this MR — were hardcoded in mappings.py before)
+  profession_mapping?: Record<string, string>;
+  activity_mapping?: Record<string, string>;
+  job_family_mapping?: Record<string, string>;
+  // Per-family / per-supervisor constraints
   outsourceability_overrides: Record<string, string>;
   ratio_overrides: Record<string, string>;
   driver_overrides: Record<string, ActivityProfession[]>;
+  // Cost assumptions (back to BU layer this MR)
   saudi_cost_premium: number | null;
   outsource_cost_discount: number | null;
 };
@@ -202,7 +207,7 @@ export type AssumptionsCatalog = {
   };
 };
 
-export type BusyAction = "upload" | "target" | "optimize" | "mappings" | null;
+export type BusyAction = "upload" | "target" | "optimize" | null;
 
 export type ChartItem = {
   label: string;

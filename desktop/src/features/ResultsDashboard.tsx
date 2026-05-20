@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { DataTable, type ColumnDef } from "../components/DataTable";
 import { DonutChart } from "../components/DonutChart";
 import type { DetailTab, OptimizationResponse } from "../types";
+import { SaudizationHero } from "./SaudizationHero";
 import {
   formatCompactCurrency,
   formatCurrency,
@@ -277,57 +278,53 @@ function FamilyMixBar({
   total: number;
 }) {
   const denominator = Math.max(total, saudi + nonSaudi + outsourced, 1);
-  // Bar segments use short codes (IS / IN / O) so the value fits even at narrow widths.
-  // The full names live in the legend rendered above the bar group.
+  // Numbers live INSIDE wide segments (no IS/IN/O codes — they read as "60" when
+  // squished). Labels live in the chip row below the bar.
   const segments = [
-    { key: "saudi", code: "IS", longLabel: "In-house Saudis", value: saudi },
-    { key: "non-saudi", code: "IN", longLabel: "In-house Non-Saudis", value: nonSaudi },
-    { key: "outsourced", code: "O", longLabel: "Outsourced", value: outsourced },
+    { key: "saudi", longLabel: "Saudi", longLabelPlural: "Saudis", value: saudi },
+    { key: "non-saudi", longLabel: "Non-Saudi", longLabelPlural: "Non-Saudis", value: nonSaudi },
+    { key: "outsourced", longLabel: "Outsourced", longLabelPlural: "Outsourced", value: outsourced },
   ];
 
   return (
     <span className="family-mix-bar-row">
       <span className="family-mix-bar-label">{label}</span>
-      <span className="family-mix-bar" aria-hidden>
-        {segments.map((segment) => {
-          const pct = segment.value > 0 ? (segment.value / denominator) * 100 : 0;
-          const value = formatNumber(segment.value, 0);
-          const text = pct >= 10 ? `${value} ${segment.code}` : value;
+      <span className="family-mix-bar-stack">
+        <span className="family-mix-bar" aria-hidden>
+          {segments.map((segment) => {
+            const pct = segment.value > 0 ? (segment.value / denominator) * 100 : 0;
+            const value = formatNumber(segment.value, 0);
+            const showNumber = pct >= 12;
 
-          return (
-            <i
-              key={segment.key}
-              className={`family-mix-bar-segment family-mix-bar-segment--${segment.key}`}
-              title={`${label} ${segment.longLabel}: ${value}`}
-              style={{ width: `${segment.value > 0 ? Math.max(2, pct) : 0}%` }}
-            >
-              {segment.value > 0 ? <span>{text}</span> : null}
-            </i>
-          );
-        })}
+            return (
+              <i
+                key={segment.key}
+                className={`family-mix-bar-segment family-mix-bar-segment--${segment.key}`}
+                title={`${label} ${segment.longLabelPlural}: ${value}`}
+                style={{ width: `${segment.value > 0 ? Math.max(2, pct) : 0}%` }}
+              >
+                {segment.value > 0 && showNumber ? <span>{value}</span> : null}
+              </i>
+            );
+          })}
+        </span>
+        <span className="family-mix-chips">
+          {segments
+            .filter((s) => s.value > 0)
+            .map((segment) => {
+              const noun = segment.value === 1 ? segment.longLabel : segment.longLabelPlural;
+              return (
+                <span
+                  key={segment.key}
+                  className={`family-mix-chip family-mix-chip--${segment.key}`}
+                >
+                  <strong>{formatNumber(segment.value, 0)}</strong> {noun}
+                </span>
+              );
+            })}
+        </span>
       </span>
     </span>
-  );
-}
-
-function FamilyMixLegend() {
-  // Short codes used inside bar segments; the legend explains them once at the top of
-  // the recommendations list so each bar can stay compact (Saad's batch-2 ask).
-  return (
-    <div className="family-mix-legend" aria-label="Bar legend">
-      <span className="family-mix-legend-item">
-        <i className="family-mix-bar-segment family-mix-bar-segment--saudi family-mix-legend-swatch" />
-        <strong>IS</strong> In-house Saudis
-      </span>
-      <span className="family-mix-legend-item">
-        <i className="family-mix-bar-segment family-mix-bar-segment--non-saudi family-mix-legend-swatch" />
-        <strong>IN</strong> In-house Non-Saudis
-      </span>
-      <span className="family-mix-legend-item">
-        <i className="family-mix-bar-segment family-mix-bar-segment--outsourced family-mix-legend-swatch" />
-        <strong>O</strong> Outsourced
-      </span>
-    </div>
   );
 }
 
@@ -354,7 +351,6 @@ function FamilyRecommendations({
 
   return (
     <div className="family-recommendations">
-      <FamilyMixLegend />
       {results.map((row) => {
         const family = getString(row, "Job Family") || "Job family";
         const modelRow = (modelByFamily.get(family) ?? {}) as Record<string, unknown>;
@@ -570,6 +566,13 @@ export function ResultsDashboard({
           )}
         </div>
 
+        <SaudizationHero
+          currentSaudi={currentSaudi}
+          currentTotal={currentEmployees}
+          optimizedSaudi={totalSaudi}
+          optimizedTotal={totalEmployees}
+        />
+
         <div className="output-breakdown-grid">
           <div className="output-breakdown-col">
             <DonutChart
@@ -580,14 +583,10 @@ export function ResultsDashboard({
               items={currentHeadcountChartItems}
               tooltipValueFormatter={(value) => formatNumber(value, 0)}
             />
-            {!isTargetMode ? (
-              <div className="output-saudization-caption">
-                Current Saudization:&nbsp;
-                <strong>{formatPercent(currentSaudi / Math.max(currentEmployees, 1))}</strong>
-              </div>
-            ) : null}
           </div>
-          <div className="output-breakdown-arrow" aria-hidden>→</div>
+          <div className="output-breakdown-divider" aria-hidden>
+            <span className="output-breakdown-divider-arrow">→</span>
+          </div>
           <div className="output-breakdown-col">
             <DonutChart
               title="Optimized Manpower Breakdown"
@@ -597,12 +596,6 @@ export function ResultsDashboard({
               items={optimizedHeadcountChartItems}
               tooltipValueFormatter={(value) => formatNumber(value, 0)}
             />
-            {!isTargetMode ? (
-              <div className="output-saudization-caption">
-                Optimized Saudization:&nbsp;
-                <strong>{formatPercent(totalSaudi / Math.max(totalEmployees, 1))}</strong>
-              </div>
-            ) : null}
           </div>
         </div>
       </div>

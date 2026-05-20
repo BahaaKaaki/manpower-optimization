@@ -107,6 +107,12 @@ class OptimizationSettings:
     # Batch-2 per-BU configuration overrides. Empty defaults preserve historical behavior.
     outsourceability_overrides: dict[str, str] = field(default_factory=dict)
     driver_overrides: dict[str, list[dict[str, str]]] = field(default_factory=dict)
+    # Per-BU mapping pipeline overrides (sourced from the BU's Excel). Carried on the
+    # settings object so they flow through prepare_model_data and run_optimization;
+    # process_workbook uses them on the first pass via separate kwargs at upload time.
+    activity_mapping: dict[str, str] = field(default_factory=dict)
+    profession_mapping: dict[str, str] = field(default_factory=dict)
+    job_family_mapping: dict[str, str] = field(default_factory=dict)
     # Tier 5: target manpower plan mode. Empty defaults preserve historical behavior.
     optimization_mode: str = "current"  # "current" | "target"
     target_headcounts: dict[str, int] = field(default_factory=dict)
@@ -246,18 +252,51 @@ def process_workbook(
     *,
     custom_families: list[CustomFamilySpec] | None = None,
     payroll_pair_overrides: dict[str, str] | None = None,
+    activity_mapping_overrides: dict[str, str] | None = None,
+    profession_mapping_overrides: dict[str, str] | None = None,
+    job_family_mapping_overrides: dict[str, str] | None = None,
 ) -> ProcessedWorkbook:
     """
-    `payroll_pair_overrides` (batch-2): maps `"<activity>|<profession>"` keys directly to
-    a canonical job family name, so the user can route a new profession (e.g. "senior labor")
-    to an existing family ("Labor") without creating a brand-new custom family.
+    `payroll_pair_overrides`: maps "<activity>|<profession>" keys directly to a canonical
+    job family name, so the user can route a new profession (e.g. "senior labor") to an
+    existing family ("Labor") without creating a brand-new custom family.
+
+    `activity_mapping_overrides`, `profession_mapping_overrides`, and
+    `job_family_mapping_overrides`: per-BU overlays on the hardcoded ``mappings.py``
+    pipeline. Allow a Business Unit to define raw->standardized translations and
+    activity-profession -> family routing specific to its operations. Each is layered
+    ON TOP of the hardcoded defaults; missing entries fall back to defaults.
     """
     custom_families = custom_families or []
     custom_by_name = custom_families_by_name(custom_families)
+
+    # Build the effective activity and profession mappings: hardcoded defaults overlaid
+    # with the BU-supplied overrides. Both lookups use the normalized key form to be
+    # case- and whitespace-insensitive.
+    effective_activity_mapping = dict(NORMALIZED_ACTIVITY_MAPPING)
+    if activity_mapping_overrides:
+        for raw, standardized in activity_mapping_overrides.items():
+            if isinstance(raw, str) and isinstance(standardized, str) and standardized.strip():
+                effective_activity_mapping[normalize_lookup_text(raw)] = standardized.strip()
+
+    effective_profession_mapping = dict(NORMALIZED_PROFESSION_MAPPING)
+    if profession_mapping_overrides:
+        for raw, standardized in profession_mapping_overrides.items():
+            if isinstance(raw, str) and isinstance(standardized, str) and standardized.strip():
+                effective_profession_mapping[normalize_lookup_text(raw)] = standardized.strip()
+
+    # Build the effective job-family mapping: hardcoded defaults, user-defined custom
+    # families, BU-supplied job-family overrides, and the per-pair overrides layered in
+    # that order. Later overlays win.
     effective_job_family_mapping = merge_user_mappings(JOB_FAMILY_MAPPING, custom_families)
+    if job_family_mapping_overrides:
+        for pair_key, family in job_family_mapping_overrides.items():
+            if isinstance(pair_key, str) and isinstance(family, str) and family.strip():
+                effective_job_family_mapping = {
+                    **effective_job_family_mapping,
+                    pair_key: family.strip(),
+                }
     if payroll_pair_overrides:
-        # Overlay user-supplied pair overrides on top of the merged mapping. Stored shape
-        # is "activity|profession" -> family name to match the frontend persistence key.
         for raw_key, family in payroll_pair_overrides.items():
             if not isinstance(raw_key, str) or "|" not in raw_key:
                 continue
@@ -288,10 +327,10 @@ def process_workbook(
     ].copy()
 
     inhouse_df["Activity_Standardized"] = inhouse_df["Location"].apply(
-        lambda x: NORMALIZED_ACTIVITY_MAPPING.get(normalize_lookup_text(x), clean_lookup_text(x))
+        lambda x: effective_activity_mapping.get(normalize_lookup_text(x), clean_lookup_text(x))
     )
     inhouse_df["Profession_Standardized"] = inhouse_df["Profession"].apply(
-        lambda x: NORMALIZED_PROFESSION_MAPPING.get(normalize_lookup_text(x), clean_lookup_text(x))
+        lambda x: effective_profession_mapping.get(normalize_lookup_text(x), clean_lookup_text(x))
     )
     inhouse_df["Activity_Profession"] = (
         inhouse_df["Activity_Standardized"] + " - " + inhouse_df["Profession_Standardized"]
@@ -379,10 +418,10 @@ def process_workbook(
     )
 
     subcontractor_df["Activity_Standardized"] = subcontractor_df["Working in"].apply(
-        lambda x: NORMALIZED_ACTIVITY_MAPPING.get(normalize_lookup_text(x), clean_lookup_text(x))
+        lambda x: effective_activity_mapping.get(normalize_lookup_text(x), clean_lookup_text(x))
     )
     subcontractor_df["Profession_Standardized"] = subcontractor_df["Profession"].apply(
-        lambda x: NORMALIZED_PROFESSION_MAPPING.get(normalize_lookup_text(x), clean_lookup_text(x))
+        lambda x: effective_profession_mapping.get(normalize_lookup_text(x), clean_lookup_text(x))
     )
     subcontractor_df["Activity_Profession"] = (
         subcontractor_df["Activity_Standardized"] + " - " + subcontractor_df["Profession_Standardized"]

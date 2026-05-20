@@ -31,10 +31,13 @@ export const BUSINESS_UNITS: BusinessUnit[] = [
 
 type Props = {
   activeBU: BusinessUnitCode | null;
-  onOpen: (code: BusinessUnitCode) => void;
+  // Tile click: set this BU as active and advance to Data Upload.
+  onUse: (code: BusinessUnitCode) => void;
+  // Edit icon click: open the BU Configuration panel for review/editing.
+  onConfigure: (code: BusinessUnitCode) => void;
 };
 
-export function BUSelectionWorkspace({ activeBU, onOpen }: Props) {
+export function BUSelectionWorkspace({ activeBU, onUse, onConfigure }: Props) {
   // A BU has a "custom" configuration when the user uploaded an Excel override file
   // for it. Otherwise the BU runs on the tool's defaults.which is a perfectly valid
   // state (so we never block selection on it).
@@ -78,19 +81,30 @@ export function BUSelectionWorkspace({ activeBU, onOpen }: Props) {
           const hasCustomConfig = customConfiguredBUs.has(bu.code);
           const shortName = bu.code.replace(/_/g, " ");
           return (
-            <button
+            <article
               key={bu.code}
               role="listitem"
-              type="button"
-              className={`bu-card${hasCustomConfig ? " bu-card--custom" : " bu-card--defaults"}${
+              className={`bu-card bu-card--logo-only${hasCustomConfig ? " bu-card--custom" : " bu-card--defaults"}${
                 isSelected ? " bu-card--selected" : ""
               }`}
-              onClick={() => onOpen(bu.code)}
-              aria-pressed={isSelected}
               style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
             >
-              {/* Accent bar at the very top that grows on hover */}
               <span className="bu-card-rail" aria-hidden />
+
+              {isSelected && (
+                <span className="bu-card-selected-badge" aria-label="Currently selected">
+                  <svg viewBox="0 0 12 12" fill="none" aria-hidden>
+                    <path
+                      d="M2.5 6.5l2.5 2.5 5-5.5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Active
+                </span>
+              )}
 
               <div className="bu-card-status" aria-hidden>
                 <span className={`bu-card-status-dot bu-card-status-dot--${hasCustomConfig ? "custom" : "defaults"}`} />
@@ -105,17 +119,33 @@ export function BUSelectionWorkspace({ activeBU, onOpen }: Props) {
                 )}
               </div>
 
-              <div className="bu-card-body">
-                <span className="bu-card-code">{shortName}</span>
-                <span className="bu-card-name">{bu.name}</span>
-              </div>
-
-              <div className="bu-card-footer">
-                <span className="bu-card-cta">
-                  {hasCustomConfig ? "Review configuration" : "Open and configure"}
-                </span>
-                <span className="bu-card-arrow" aria-hidden>
-                  <svg viewBox="0 0 16 16" fill="none">
+              <div className="bu-card-actions">
+                <button
+                  type="button"
+                  className="bu-card-action bu-card-action--configure"
+                  onClick={() => onConfigure(bu.code)}
+                  aria-label={`Configure ${bu.name}`}
+                >
+                  <svg viewBox="0 0 16 16" fill="none" aria-hidden>
+                    <path
+                      d="M11.5 2.5l2 2-7 7-2.5.5.5-2.5 7-7z"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Configure
+                </button>
+                <button
+                  type="button"
+                  className="bu-card-action bu-card-action--use"
+                  onClick={() => onUse(bu.code)}
+                  aria-pressed={isSelected}
+                  aria-label={`Use ${bu.name}`}
+                >
+                  {isSelected ? "Continue" : "Use this BU"}
+                  <svg viewBox="0 0 16 16" fill="none" aria-hidden>
                     <path
                       d="M3 8h10m0 0L9 4m4 4l-4 4"
                       stroke="currentColor"
@@ -124,9 +154,9 @@ export function BUSelectionWorkspace({ activeBU, onOpen }: Props) {
                       strokeLinejoin="round"
                     />
                   </svg>
-                </span>
+                </button>
               </div>
-            </button>
+            </article>
           );
         })}
       </div>
