@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import type { BusinessUnit, BusinessUnitCode } from "../types";
 import { persistGet } from "../utils/persistence";
 
-import cpcHolding from "../assets/bu-logos/cpc-holding.png";
 import mgicLogo from "../assets/bu-logos/mgic.png";
 import uaacLogo from "../assets/bu-logos/uaac.png";
 import fastLogo from "../assets/bu-logos/fast.png";
@@ -62,7 +61,6 @@ export function BUSelectionWorkspace({ activeBU, onUse, onConfigure }: Props) {
   return (
     <div className="bu-selection">
       <header className="bu-selection-hero">
-        <img className="bu-selection-hero-mark" src={cpcHolding} alt="CPC Holding" />
         <h1>Choose a Business Unit</h1>
       </header>
 

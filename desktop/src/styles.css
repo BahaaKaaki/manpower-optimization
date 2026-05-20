@@ -703,12 +703,12 @@ button, input, select {
 }
 
 .sidebar-footer-logo {
-  width: 64px;
+  width: 108px;
   height: auto;
   align-self: center;
   object-fit: contain;
-  opacity: 0.92;
-  margin: 6px 0 4px;
+  opacity: 0.96;
+  margin: 8px 0 6px;
 }
 
 .engine-status {
