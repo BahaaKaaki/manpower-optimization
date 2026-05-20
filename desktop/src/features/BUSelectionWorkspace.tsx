@@ -62,16 +62,18 @@ export function BUSelectionWorkspace({ activeBU, onUse, onConfigure }: Props) {
   return (
     <div className="bu-selection">
       <header className="bu-selection-hero">
-        <div className="bu-selection-hero-mark">
-          <img src={cpcHolding} alt="CPC Holding" />
-        </div>
-        <div className="bu-selection-hero-text">
-          <span className="bu-selection-hero-eyebrow">CPC Holding Group</span>
-          <h1>Choose your Business Unit</h1>
-          <p>
-            Each BU has its own configuration. Click a card to review the setup,
-            customize via Excel, and start optimizing.
-          </p>
+        <div className="bu-selection-hero-content">
+          <div className="bu-selection-hero-mark">
+            <img src={cpcHolding} alt="CPC Holding" />
+          </div>
+          <div className="bu-selection-hero-text">
+            <span className="bu-selection-hero-eyebrow">CPC Holding Group</span>
+            <h1>Choose your Business Unit</h1>
+            <p>
+              Select the BU you want to optimize. Each has its own configuration that
+              you can review or customize via Excel.
+            </p>
+          </div>
         </div>
       </header>
 
@@ -87,36 +89,44 @@ export function BUSelectionWorkspace({ activeBU, onUse, onConfigure }: Props) {
               className={`bu-card bu-card--logo-only${hasCustomConfig ? " bu-card--custom" : " bu-card--defaults"}${
                 isSelected ? " bu-card--selected" : ""
               }`}
-              style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
+              style={{ animationDelay: `${idx * 55}ms` } as React.CSSProperties}
             >
               <span className="bu-card-rail" aria-hidden />
 
-              {isSelected && (
-                <span className="bu-card-selected-badge" aria-label="Currently selected">
-                  <svg viewBox="0 0 12 12" fill="none" aria-hidden>
-                    <path
-                      d="M2.5 6.5l2.5 2.5 5-5.5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  Active
+              <div className="bu-card-header">
+                <span
+                  className={`bu-card-status bu-card-status--${hasCustomConfig ? "custom" : "defaults"}`}
+                  aria-label={hasCustomConfig ? "Custom configuration" : "Using tool defaults"}
+                >
+                  <span className="bu-card-status-dot" aria-hidden />
+                  {hasCustomConfig ? "Custom" : "Defaults"}
                 </span>
-              )}
-
-              <div className="bu-card-status" aria-hidden>
-                <span className={`bu-card-status-dot bu-card-status-dot--${hasCustomConfig ? "custom" : "defaults"}`} />
-                {hasCustomConfig ? "Custom configuration" : "Using tool defaults"}
+                {isSelected && (
+                  <span className="bu-card-selected-badge" aria-label="Currently selected">
+                    <svg viewBox="0 0 12 12" fill="none" aria-hidden>
+                      <path
+                        d="M2.5 6.5l2.5 2.5 5-5.5"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    Active
+                  </span>
+                )}
               </div>
 
-              <div className="bu-card-logo">
-                {bu.logoSrc ? (
-                  <img src={bu.logoSrc} alt={`${bu.name} logo`} />
-                ) : (
-                  <span className="bu-card-logo-placeholder-code">{shortName}</span>
-                )}
+              <div className="bu-card-logo-section">
+                <div className="bu-card-logo">
+                  {bu.logoSrc ? (
+                    <img src={bu.logoSrc} alt="" />
+                  ) : (
+                    <span className="bu-card-logo-placeholder-code">{shortName}</span>
+                  )}
+                </div>
+                <span className="bu-card-code" aria-hidden>{shortName}</span>
+                <span className="visually-hidden">{bu.name}</span>
               </div>
 
               <div className="bu-card-actions">
@@ -144,7 +154,7 @@ export function BUSelectionWorkspace({ activeBU, onUse, onConfigure }: Props) {
                   aria-pressed={isSelected}
                   aria-label={`Use ${bu.name}`}
                 >
-                  {isSelected ? "Continue" : "Use this BU"}
+                  {isSelected ? "Continue" : "Select"}
                   <svg viewBox="0 0 16 16" fill="none" aria-hidden>
                     <path
                       d="M3 8h10m0 0L9 4m4 4l-4 4"
