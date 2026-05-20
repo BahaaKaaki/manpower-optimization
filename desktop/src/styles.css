@@ -6590,20 +6590,132 @@ html {
    this strip just adds the rate-level numbers and Saudi headcount delta
    in one elegant row of typography. Height ~36px.
    Replaces the earlier ring-gauge hero / journey-band hero. */
-.saudization-strip {
+.saudization-showcase {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
   align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  padding: 9px 16px;
+  padding: 14px 18px;
   margin: 0 0 14px 0;
-  background: rgba(127, 204, 94, 0.06);
-  border: 1px solid rgba(127, 204, 94, 0.22);
-  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, rgba(127, 204, 94, 0.10) 0%, rgba(56, 117, 35, 0.18) 100%);
+  border: 1px solid rgba(127, 204, 94, 0.30);
+  border-left: 4px solid var(--accent-500);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  animation: saudization-hero-enter 460ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.saudization-showcase-flag {
+  flex-shrink: 0;
+  width: 84px;
+  height: 56px;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  background: var(--accent-700);
+}
+
+.saudization-showcase-flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.saudization-showcase-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.saudization-showcase-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-300, #b1de9a);
+}
+
+.saudization-showcase-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.saudization-showcase-value {
+  font-family: var(--font-display, inherit);
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.saudization-showcase-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: var(--radius-full);
   font-size: 12px;
-  color: rgba(246, 250, 243, 0.78);
-  animation: saudization-hero-enter 380ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(127, 204, 94, 0.24);
+  color: #d5edc4;
+  white-space: nowrap;
+}
+
+.saudization-showcase-delta--down {
+  background: rgba(232, 152, 48, 0.24);
+  color: #f6d6a3;
+}
+
+.saudization-showcase-delta--flat {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(246, 250, 243, 0.72);
+}
+
+.saudization-showcase-help {
+  margin-left: auto;
+  font-size: 13px;
+  color: rgba(246, 250, 243, 0.40);
+  cursor: help;
+  transition: color var(--transition-fast);
+}
+
+.saudization-showcase-help:hover { color: rgba(246, 250, 243, 0.90); }
+
+.saudization-showcase-sub {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(246, 250, 243, 0.62);
+  line-height: 1.45;
+}
+
+.saudization-showcase-sub strong {
+  color: #ffffff;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .saudization-showcase { padding: 12px 14px; gap: 14px; }
+  .saudization-showcase-flag { width: 64px; height: 44px; }
+  .saudization-showcase-value { font-size: 30px; }
+  .saudization-showcase-help { display: none; }
+}
+
+/* Legacy strip class kept as no-op stub (no consumers) */
+.saudization-strip {
+  display: none;
 }
 
 @keyframes saudization-hero-enter {
@@ -6615,86 +6727,6 @@ html {
   .saudization-hero { animation: none; }
 }
 
-.saudization-strip-flag {
-  flex-shrink: 0;
-  border-radius: 2px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.20);
-}
-
-.saudization-strip-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  color: var(--accent-300, #b1de9a);
-}
-
-.saudization-strip-rates {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  font-variant-numeric: tabular-nums;
-}
-
-.saudization-strip-current {
-  color: rgba(246, 250, 243, 0.65);
-  font-weight: 600;
-}
-
-.saudization-strip-arrow {
-  color: var(--accent-400, var(--accent-500));
-  opacity: 0.7;
-  font-size: 13px;
-}
-
-.saudization-strip-optimized {
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 15px;
-}
-
-.saudization-strip-delta {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 9px;
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  font-weight: 700;
-  background: rgba(127, 204, 94, 0.22);
-  color: #d5edc4;
-}
-
-.saudization-strip-delta--down {
-  background: rgba(232, 152, 48, 0.22);
-  color: #f6d6a3;
-}
-
-.saudization-strip-delta--flat {
-  background: rgba(255, 255, 255, 0.10);
-  color: rgba(246, 250, 243, 0.72);
-}
-
-.saudization-strip-positions {
-  font-size: 11px;
-  color: rgba(246, 250, 243, 0.58);
-  font-variant-numeric: tabular-nums;
-}
-
-.saudization-strip-help {
-  margin-left: auto;
-  font-size: 11px;
-  color: rgba(246, 250, 243, 0.45);
-  cursor: help;
-  transition: color var(--transition-fast);
-}
-
-.saudization-strip-help:hover { color: rgba(246, 250, 243, 0.85); }
-
-@media (max-width: 720px) {
-  .saudization-strip { font-size: 11px; gap: 8px; }
-  .saudization-strip-positions { width: 100%; }
-}
 
 /* Minimal divider between Current/Optimized donuts. The Saudization story lives
    in the SaudizationHero above, so this just provides a visual "before → after"

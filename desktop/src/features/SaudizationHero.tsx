@@ -10,13 +10,17 @@ type Props = {
 };
 
 /**
- * Single-line Saudization strip — non-intrusive footnote that lives between
- * the KPI grid and the donut breakdown. The donut chart already shows the
- * proportional Saudi vs Non-Saudi vs Outsourced split visually; this strip
- * just adds the rate-level narrative (current → optimized + Saudi headcount
- * change) in one elegant row of typography.
+ * Saudization showcase card — single-row design that uses the Saudi flag as
+ * the visual focal point, with the optimized rate as the hero number, delta
+ * pill inline, and a single supporting line.
  *
- *   🇸🇦  SAUDIZATION   23.4% → 32.1%   ▲ +8.7 pp   361 → 383 Saudis (+22)  ⓘ
+ *   ┌──────┐   SAUDIZATION
+ *   │      │
+ *   │ 🇸🇦  │   32.1%    ▲ +8.7 pp
+ *   │      │   ─
+ *   └──────┘   From 23.4% · 361 → 383 in-house Saudis (+22 positions)
+ *
+ * Sits between the KPI grid and the donut breakdown. Height ~92px.
  */
 export function SaudizationHero({
   currentSaudi,
@@ -29,8 +33,7 @@ export function SaudizationHero({
   const optimizedRate = Math.max(0, Math.min(1, optimizedSaudi / safeOptimizedTotal));
   const currentRate = Math.max(0, Math.min(1, currentSaudi / safeCurrentTotal));
   const deltaPp = (optimizedRate - currentRate) * 100;
-
-  const animatedOptimized = useCountUp(optimizedRate * 100, 600);
+  const animatedOptimized = useCountUp(optimizedRate * 100, 720);
 
   const tone =
     Math.abs(deltaPp) < 0.05 ? "flat" : deltaPp > 0 ? "up" : "down";
@@ -39,48 +42,44 @@ export function SaudizationHero({
   const newSaudiPositions = Math.round(optimizedSaudi - currentSaudi);
   const positionsLabel =
     newSaudiPositions > 0
-      ? `+${newSaudiPositions}`
+      ? `+${newSaudiPositions} positions added`
       : newSaudiPositions < 0
-        ? `${newSaudiPositions}`
-        : "±0";
+        ? `${Math.abs(newSaudiPositions)} positions reduced`
+        : "no change";
 
   return (
-    <div className={`saudization-strip saudization-strip--${tone}`}>
-      <img
-        src={saudiFlagUrl}
-        width="20"
-        height="14"
-        alt=""
-        aria-hidden
-        className="saudization-strip-flag"
-      />
-      <span className="saudization-strip-label">Saudization</span>
+    <div className={`saudization-showcase saudization-showcase--${tone}`}>
+      <div className="saudization-showcase-flag" aria-hidden>
+        <img src={saudiFlagUrl} alt="" />
+      </div>
 
-      <span className="saudization-strip-rates">
-        <span className="saudization-strip-current">{(currentRate * 100).toFixed(1)}%</span>
-        <span className="saudization-strip-arrow" aria-hidden>→</span>
-        <span className="saudization-strip-optimized">{animatedOptimized.toFixed(1)}%</span>
-      </span>
-
-      <span
-        className={`saudization-strip-delta saudization-strip-delta--${tone}`}
-        aria-label={`${deltaSign}${deltaPp.toFixed(1)} percentage points`}
-      >
-        <span aria-hidden>{deltaGlyph}</span>
-        {`${deltaSign}${deltaPp.toFixed(1)} pp`}
-      </span>
-
-      <span className="saudization-strip-positions">
-        {Math.round(currentSaudi).toLocaleString()} → {Math.round(optimizedSaudi).toLocaleString()} Saudis ({positionsLabel})
-      </span>
-
-      <span
-        className="saudization-strip-help"
-        title={`Rate = in-house Saudis ÷ in-house workforce (Nitaqat — outsourced workers are excluded). pp = percentage points, the absolute difference between two rates.`}
-        aria-label="Saudization methodology"
-      >
-        ⓘ
-      </span>
+      <div className="saudization-showcase-body">
+        <span className="saudization-showcase-eyebrow">Saudization</span>
+        <div className="saudization-showcase-row">
+          <span className="saudization-showcase-value">{animatedOptimized.toFixed(1)}%</span>
+          <span
+            className={`saudization-showcase-delta saudization-showcase-delta--${tone}`}
+            aria-label={`${deltaSign}${deltaPp.toFixed(1)} percentage points vs current`}
+          >
+            <span aria-hidden>{deltaGlyph}</span>
+            {`${deltaSign}${deltaPp.toFixed(1)} pp`}
+          </span>
+          <span
+            className="saudization-showcase-help"
+            title="Rate = in-house Saudis ÷ in-house workforce (Nitaqat, excludes outsourced). pp = percentage points."
+            aria-label="Saudization methodology"
+          >
+            ⓘ
+          </span>
+        </div>
+        <p className="saudization-showcase-sub">
+          From <strong>{(currentRate * 100).toFixed(1)}%</strong> ·
+          {" "}<strong>{Math.round(currentSaudi).toLocaleString()}</strong>
+          {" "}→{" "}<strong>{Math.round(optimizedSaudi).toLocaleString()}</strong>
+          {" "}in-house Saudis ·
+          {" "}{positionsLabel}
+        </p>
+      </div>
     </div>
   );
 }
