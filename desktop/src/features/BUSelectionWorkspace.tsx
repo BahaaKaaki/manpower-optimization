@@ -86,84 +86,84 @@ export function BUSelectionWorkspace({ activeBU, onUse, onConfigure }: Props) {
             <article
               key={bu.code}
               role="listitem"
-              className={`bu-card bu-card--showcase${hasCustomConfig ? " bu-card--custom" : " bu-card--defaults"}${
+              className={`bu-card bu-card--compact${hasCustomConfig ? " bu-card--custom" : " bu-card--defaults"}${
                 isSelected ? " bu-card--selected" : ""
               }`}
-              style={{ animationDelay: `${idx * 55}ms` } as React.CSSProperties}
+              style={{ animationDelay: `${idx * 50}ms` } as React.CSSProperties}
             >
-              {/* Active marker — subtle accent rail on top, chip top-left */}
               <span className="bu-card-rail" aria-hidden />
-              {isSelected && (
-                <span className="bu-card-active-flag" aria-label="Currently selected">
-                  <svg viewBox="0 0 12 12" fill="none" aria-hidden>
-                    <path
-                      d="M2.5 6.5l2.5 2.5 5-5.5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  Active
-                </span>
-              )}
 
-              {/* Floating configure pencil — small, top-right, doesn't take a row */}
-              <button
-                type="button"
-                className="bu-card-configure-icon"
-                onClick={() => onConfigure(bu.code)}
-                aria-label={`Configure ${bu.name}`}
-                title={`Configure ${bu.name}`}
-              >
-                <svg viewBox="0 0 16 16" fill="none" aria-hidden>
-                  <path
-                    d="M11.5 2.5l2 2-7 7-2.5.5.5-2.5 7-7z"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+              <div className="bu-card-logo">
+                {bu.logoSrc ? (
+                  <img src={bu.logoSrc} alt={bu.name} />
+                ) : (
+                  <span className="bu-card-logo-placeholder-code">{shortName}</span>
+                )}
+              </div>
 
-              {/* The whole card body is the primary action: click anywhere → Use this BU.
-                  Logo carries the name; we don't repeat the BU name or code as text. */}
-              <button
-                type="button"
-                className="bu-card-body"
-                onClick={() => onUse(bu.code)}
-                aria-pressed={isSelected}
-                aria-label={`Select ${bu.name}`}
-              >
-                <div className="bu-card-logo">
-                  {bu.logoSrc ? (
-                    <img src={bu.logoSrc} alt={bu.name} />
-                  ) : (
-                    <span className="bu-card-logo-placeholder-code">{shortName}</span>
-                  )}
-                </div>
-                <div className="bu-card-footer">
+              <div className="bu-card-side">
+                <div className="bu-card-meta-row">
                   <span
                     className={`bu-card-meta-status bu-card-meta-status--${hasCustomConfig ? "custom" : "defaults"}`}
+                    title={hasCustomConfig ? "Custom configuration" : "Using tool defaults"}
                   >
                     <span className="bu-card-meta-dot" aria-hidden />
-                    {hasCustomConfig ? "Custom configured" : "Using defaults"}
+                    {hasCustomConfig ? "Custom" : "Defaults"}
                   </span>
-                  <span className="bu-card-cta" aria-hidden>
-                    {isSelected ? "Continue" : "Select"}
-                    <svg viewBox="0 0 16 16" fill="none">
+                  {isSelected && (
+                    <span className="bu-card-active-flag" aria-label="Currently selected">
+                      <svg viewBox="0 0 12 12" fill="none" aria-hidden>
+                        <path
+                          d="M2.5 6.5l2.5 2.5 5-5.5"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      Active
+                    </span>
+                  )}
+                </div>
+
+                <div className="bu-card-actions">
+                  <button
+                    type="button"
+                    className="bu-card-action bu-card-action--configure"
+                    onClick={() => onConfigure(bu.code)}
+                    aria-label={`Configure ${bu.name}`}
+                  >
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden>
                       <path
-                        d="M3 8h10m0 0L9 4m4 4l-4 4"
+                        d="M11.5 2.5l2 2-7 7-2.5.5.5-2.5 7-7z"
                         stroke="currentColor"
-                        strokeWidth="1.7"
+                        strokeWidth="1.4"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
                     </svg>
-                  </span>
+                    Configure
+                  </button>
+                  <button
+                    type="button"
+                    className="bu-card-action bu-card-action--use"
+                    onClick={() => onUse(bu.code)}
+                    aria-pressed={isSelected}
+                    aria-label={`Use ${bu.name}`}
+                  >
+                    {isSelected ? "Continue" : "Use this BU"}
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden>
+                      <path
+                        d="M3 8h10m0 0L9 4m4 4l-4 4"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
                 </div>
-              </button>
+              </div>
             </article>
           );
         })}

@@ -5185,87 +5185,124 @@ textarea:focus-visible {
   flex-wrap: wrap;
 }
 
-/* ── BU Showcase tile ─────────────────────────────────────────────────
-   Clean single-action tile. The WHOLE body is the click target (Select).
-   A small floating pencil icon in the top-right opens the Configure panel.
-   The logo carries the brand identity — no duplicate name/code text. */
-.bu-card--showcase {
+/* ── BU Compact tile (horizontal layout for laptop viewport) ──────────
+   Logo on the LEFT, status pill + two-button row on the RIGHT.
+   Tile ~140px tall so the full 3×3 grid + hero fits a 1366×768 laptop. */
+.bu-card--compact {
   position: relative;
   padding: 0;
   cursor: default;
   overflow: hidden;
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 0;
   background: var(--bg-surface);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
+  min-height: 140px;
 }
 
-.bu-card--showcase:hover:not(:disabled) {
-  transform: translateY(-6px);
+.bu-card--compact:hover:not(:disabled) {
+  transform: translateY(-4px);
   box-shadow:
-    0 26px 44px rgba(14, 20, 32, 0.10),
-    0 8px 14px rgba(14, 20, 32, 0.06),
+    0 18px 32px rgba(14, 20, 32, 0.10),
+    0 4px 10px rgba(14, 20, 32, 0.06),
     0 0 0 1px var(--accent-200, var(--accent-100));
 }
 
-/* Floating pencil icon in the top-right corner */
-.bu-card-configure-icon {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 3;
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
+/* Left: logo plate spanning the full tile height, accent gradient backdrop */
+.bu-card--compact .bu-card-logo {
+  display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(4px);
-  border: 1px solid var(--border-light);
-  border-radius: 50%;
-  color: var(--text-secondary);
-  cursor: pointer;
-  opacity: 0;
-  transform: scale(0.85);
+  padding: 14px;
+  margin: 0;
+  background:
+    radial-gradient(circle at 50% 40%, #ffffff 0%, rgba(248, 251, 245, 0.85) 60%, rgba(232, 242, 222, 0.45) 100%);
+  border-right: 1px solid var(--accent-100);
+  overflow: hidden;
   transition:
-    opacity 220ms cubic-bezier(0.32, 0.72, 0, 1),
-    transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
-    background var(--transition-fast),
-    color var(--transition-fast),
-    border-color var(--transition-fast);
+    background 280ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 280ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.bu-card-configure-icon svg {
-  width: 14px;
-  height: 14px;
+.bu-card--compact:hover .bu-card-logo {
+  background:
+    radial-gradient(circle at 50% 40%, #ffffff 0%, #f1f9e9 55%, #def0d0 100%);
+  border-right-color: var(--accent-300, var(--accent-500));
 }
 
-.bu-card--showcase:hover .bu-card-configure-icon,
-.bu-card-configure-icon:focus-visible {
-  opacity: 1;
-  transform: scale(1);
+.bu-card--compact .bu-card-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06));
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.bu-card-configure-icon:hover {
-  background: var(--accent-700);
-  color: #ffffff;
-  border-color: var(--accent-700);
+.bu-card--compact:hover .bu-card-logo img {
   transform: scale(1.06);
 }
 
-.bu-card-configure-icon:focus-visible {
-  outline: 2px solid var(--accent-500);
-  outline-offset: 2px;
+/* Right: meta row on top, action row on bottom */
+.bu-card-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px 12px 14px;
+  min-width: 0;
 }
 
-/* Active flag — pill in the top-left for the currently-selected BU */
-.bu-card-active-flag {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 3;
+.bu-card-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Status pill — dot + short label ('Custom' / 'Defaults') */
+.bu-card--compact .bu-card-meta-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 7px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-light);
+}
+
+.bu-card--compact .bu-card-meta-status--custom {
+  color: var(--accent-700);
+  background: var(--accent-50);
+  border-color: var(--accent-100);
+}
+
+.bu-card--compact .bu-card-meta-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-faint, var(--text-muted));
+  flex-shrink: 0;
+}
+
+.bu-card--compact .bu-card-meta-status--custom .bu-card-meta-dot {
+  background: var(--accent-600);
+  box-shadow: 0 0 0 2.5px rgba(127, 204, 94, 0.18);
+}
+
+/* Active flag — green chip on the right of the meta row, only when selected */
+.bu-card--compact .bu-card-active-flag {
+  position: static;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 9px 3px 7px;
+  padding: 3px 8px 3px 6px;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -5273,156 +5310,118 @@ textarea:focus-visible {
   color: #ffffff;
   background: linear-gradient(135deg, var(--accent-700), var(--accent-600));
   border-radius: var(--radius-full);
-  box-shadow: 0 2px 6px rgba(80, 156, 53, 0.35);
+  box-shadow: 0 2px 5px rgba(80, 156, 53, 0.30);
   animation: bu-selected-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-.bu-card-active-flag svg {
-  width: 11px;
-  height: 11px;
+.bu-card--compact .bu-card-active-flag svg {
+  width: 10px;
+  height: 10px;
 }
 
-/* Whole card body — the single click target for Select */
-.bu-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-  padding: 22px 20px 18px 20px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  color: inherit;
-  font-family: inherit;
+/* Bottom row: two side-by-side action buttons */
+.bu-card--compact .bu-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  border-top: none;
+  margin-top: 0;
 }
 
-.bu-card-body:focus-visible {
-  outline: 3px solid var(--accent-500);
-  outline-offset: -3px;
-}
-
-/* Logo plate — the hero element */
-.bu-card--showcase .bu-card-logo {
-  display: flex;
+.bu-card--compact .bu-card-action {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 156px;
-  padding: 18px;
-  background:
-    radial-gradient(circle at 50% 30%, #ffffff 0%, rgba(248, 251, 245, 0.92) 60%, rgba(232, 242, 222, 0.55) 100%);
-  border: 1px solid var(--accent-100);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  position: relative;
-  transition:
-    background 320ms cubic-bezier(0.32, 0.72, 0, 1),
-    border-color 320ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-.bu-card--showcase:hover .bu-card-logo {
-  background:
-    radial-gradient(circle at 50% 30%, #ffffff 0%, #f1f9e9 55%, #def0d0 100%);
-  border-color: var(--accent-300, var(--accent-500));
-}
-
-.bu-card--showcase .bu-card-logo img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06));
-  transition: transform 380ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-.bu-card--showcase:hover .bu-card-logo img {
-  transform: scale(1.05);
-}
-
-/* Footer row inside the card body: status on the left, CTA on the right */
-.bu-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 4px 2px 0 2px;
-}
-
-.bu-card-meta-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+  gap: 5px;
+  padding: 7px 8px;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.bu-card-meta-status--custom {
-  color: var(--accent-700);
-}
-
-.bu-card-meta-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--text-faint, var(--text-muted));
-  flex-shrink: 0;
-}
-
-.bu-card-meta-status--custom .bu-card-meta-dot {
-  background: var(--accent-600);
-  box-shadow: 0 0 0 3px rgba(127, 204, 94, 0.20);
-}
-
-/* Inline CTA on the right of the footer — only shows arrow + label, no chrome */
-.bu-card-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--accent-700);
-  transition: gap 200ms cubic-bezier(0.32, 0.72, 0, 1), color var(--transition-fast);
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform 160ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.bu-card-cta svg {
-  width: 14px;
-  height: 14px;
+.bu-card--compact .bu-card-action svg {
+  width: 12px;
+  height: 12px;
   transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.bu-card--showcase:hover .bu-card-cta svg {
-  transform: translateX(3px);
+.bu-card--compact .bu-card-action--configure {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border-color: var(--border-light);
 }
 
-.bu-card--showcase:hover .bu-card-cta {
-  color: var(--accent-800, var(--accent-700));
+.bu-card--compact .bu-card-action--configure:hover {
+  background: var(--accent-50);
+  color: var(--accent-700);
+  border-color: var(--accent-100);
 }
 
-/* Selected state: subtle accent glow + the active flag pop */
-.bu-card--selected {
+.bu-card--compact .bu-card-action--use {
+  background: var(--accent-700);
+  color: #ffffff;
+  border-color: var(--accent-700);
+}
+
+.bu-card--compact .bu-card-action--use:hover {
+  background: var(--accent-800, var(--accent-700));
+  border-color: var(--accent-800, var(--accent-700));
+}
+
+.bu-card--compact .bu-card-action--use:hover svg {
+  transform: translateX(2px);
+}
+
+.bu-card--compact .bu-card-action:focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+/* Selected state: accent border + glow + the use button gets a gradient */
+.bu-card--compact.bu-card--selected {
   border-color: var(--accent-500);
   box-shadow:
     0 0 0 2px var(--accent-100),
-    0 8px 18px rgba(80, 156, 53, 0.12);
+    0 6px 14px rgba(80, 156, 53, 0.12);
 }
 
-.bu-card--selected .bu-card-logo {
+.bu-card--compact.bu-card--selected .bu-card-logo {
   background:
-    radial-gradient(circle at 50% 30%, #ffffff 0%, #ecf6e2 55%, #d6ecc5 100%);
-  border-color: var(--accent-400, var(--accent-500));
+    radial-gradient(circle at 50% 40%, #ffffff 0%, #ecf6e2 55%, #d6ecc5 100%);
+  border-right-color: var(--accent-400, var(--accent-500));
 }
 
-.bu-card--selected .bu-card-cta {
-  color: var(--accent-800, var(--accent-700));
+.bu-card--compact.bu-card--selected .bu-card-action--use {
+  background: linear-gradient(135deg, var(--accent-700), var(--accent-600));
 }
 
-/* Reduced motion: kill the hover transform/scale animations */
 @media (prefers-reduced-motion: reduce) {
-  .bu-card--showcase:hover { transform: none; }
-  .bu-card--showcase:hover .bu-card-logo img { transform: none; }
-  .bu-card--showcase:hover .bu-card-cta svg { transform: none; }
+  .bu-card--compact:hover { transform: none; }
+  .bu-card--compact:hover .bu-card-logo img { transform: none; }
+  .bu-card--compact:hover .bu-card-action--use:hover svg { transform: none; }
+}
+
+@media (max-width: 1100px) {
+  /* Tablet: tile gets wider with the 2-col grid; widen the logo plate */
+  .bu-card--compact {
+    grid-template-columns: 160px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .bu-card--compact {
+    grid-template-columns: 110px minmax(0, 1fr);
+    min-height: 120px;
+  }
 }
 
 /* "Active" badge — sits in the .bu-card-header row, opposite the status pill */
@@ -5974,21 +5973,18 @@ textarea:focus-visible {
    BU Selection v2: polished hero + card grid (replaces .bu-tile)
    ══════════════════════════════════════════════════════════════════ */
 
-/* ── BU Selection Hero (Round-3 redesign — single content block) ─── */
+/* ── BU Selection Hero (compact for laptop viewport) ────────────────── */
 .bu-selection-hero {
   display: flex;
   align-items: center;
-  padding: 18px 24px;
+  padding: 12px 20px;
   background:
-    radial-gradient(circle at 0% 100%, rgba(80, 156, 53, 0.12), transparent 55%),
-    radial-gradient(circle at 100% 0%, rgba(127, 204, 94, 0.08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(80, 156, 53, 0.10), transparent 55%),
     linear-gradient(135deg, #ffffff 0%, #f7faf6 100%);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-xl);
-  box-shadow:
-    0 6px 18px rgba(14, 20, 32, 0.04),
-    0 1px 2px rgba(14, 20, 32, 0.05);
-  margin-bottom: 18px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 6px rgba(14, 20, 32, 0.04);
+  margin-bottom: 12px;
   position: relative;
   overflow: hidden;
 }
@@ -6018,18 +6014,16 @@ textarea:focus-visible {
 
 .bu-selection-hero-mark {
   flex-shrink: 0;
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-surface);
   border: 1px solid var(--accent-100);
   border-radius: var(--radius-md);
-  padding: 8px;
-  box-shadow:
-    0 4px 12px rgba(14, 20, 32, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  padding: 6px;
+  box-shadow: 0 2px 6px rgba(14, 20, 32, 0.06);
 }
 
 .bu-selection-hero-mark img {
@@ -6056,18 +6050,18 @@ textarea:focus-visible {
 .bu-selection-hero-text h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.15;
-  letter-spacing: -0.015em;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .bu-selection-hero-text p {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.45;
+  line-height: 1.4;
   max-width: 540px;
 }
 
@@ -6138,11 +6132,12 @@ textarea:focus-visible {
   }
 }
 
-/* Card grid: 9 BUs in a clean 3×3 on desktop, 2-col on tablet, 1-col on phone */
+/* Card grid: 9 BUs in a clean 3×3 on desktop, 2-col on tablet, 1-col on phone.
+   Tight 10px gap so the whole 3×3 grid + hero fits in a laptop viewport. */
 .bu-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
 
 @media (max-width: 1100px) {
