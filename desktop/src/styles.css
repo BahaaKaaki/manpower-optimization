@@ -5973,14 +5973,14 @@ textarea:focus-visible {
    BU Selection v2: polished hero + card grid (replaces .bu-tile)
    ══════════════════════════════════════════════════════════════════ */
 
-/* ── BU Selection Hero (Plan-agent design — minimal mark + title) ──── */
+/* ── BU Selection Hero (compact — fits laptop viewport) ────────────── */
 .bu-selection-hero {
   display: flex;
   align-items: center;
-  gap: 16px;
-  height: 80px;
+  gap: 14px;
+  height: 56px;
   padding: 0 4px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -6011,15 +6011,15 @@ textarea:focus-visible {
 
 .bu-selection-hero-mark {
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
 }
 
 .bu-selection-hero h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1.2;
@@ -6093,11 +6093,13 @@ textarea:focus-visible {
   }
 }
 
-/* 3×3 grid sized so 9 tiles + hero fit in a 1366×768 laptop viewport */
+/* 3×3 grid sized so 9 tiles + hero + stage-nav all fit in a 1366×768
+   laptop viewport. Content area ≈ 650px tall; budget is:
+     Hero 56 + gap 12 + grid (3 × 150 + 2 × 12) = 542px ≤ 580px.        */
 .bu-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 @media (max-width: 1100px) {
@@ -6124,7 +6126,7 @@ textarea:focus-visible {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 184px;
+  height: 150px;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
@@ -6155,7 +6157,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 22px;
+  padding: 12px 18px;
   background: #ffffff;
   border: none;
   cursor: pointer;
@@ -6171,16 +6173,22 @@ textarea:focus-visible {
   outline-offset: -3px;
 }
 
+/* Logo image — cap both the width AND the height so logos with different
+   intrinsic aspect ratios / internal padding (UCC, Sphinx have less internal
+   whitespace and were rendering ~30% larger than the others) all read at
+   the same visual size. The aspect ratio is preserved by object-fit:contain. */
 .bu-tile-body img {
-  max-width: 100%;
-  max-height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 70%;
+  max-height: 72px;
   object-fit: contain;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.04));
   transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .bu-tile:hover .bu-tile-body img {
-  transform: scale(1.03);
+  transform: scale(1.04);
 }
 
 .bu-tile-placeholder {
@@ -6233,16 +6241,30 @@ textarea:focus-visible {
   border-radius: 2px;
 }
 
-.bu-tile-foot-arrow {
-  font-size: 16px;
-  line-height: 1;
-  color: var(--text-muted);
+/* Right-side "Use →" label — gives users an explicit cue that the body is
+   the action. Same typographic weight as Configure so neither one steals
+   focus; the arrow + accent color tells the eye which is primary. */
+.bu-tile-foot-use {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-700);
+  pointer-events: none;
   transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1), color var(--transition-fast);
 }
 
-.bu-tile:hover .bu-tile-foot-arrow {
-  transform: translateX(4px);
+.bu-tile-foot-use-glyph {
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
+
+.bu-tile:hover .bu-tile-foot-use { color: var(--accent-800, var(--accent-700)); }
+.bu-tile:hover .bu-tile-foot-use-glyph { transform: translateX(3px); }
 
 /* Selected state — accent rail + faint green wash + green arrow chip */
 .bu-tile--selected {
@@ -6257,25 +6279,25 @@ textarea:focus-visible {
 
 .bu-tile--selected .bu-tile-foot-configure { color: var(--accent-700); }
 
-.bu-tile--selected .bu-tile-foot-arrow {
+.bu-tile--selected .bu-tile-foot-use--active .bu-tile-foot-use-glyph {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--accent-600);
   color: #ffffff;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(80, 156, 53, 0.30);
+  box-shadow: 0 2px 4px rgba(80, 156, 53, 0.30);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .bu-tile { animation: none; opacity: 1; }
   .bu-tile:hover { transform: none; }
   .bu-tile:hover .bu-tile-body img { transform: none; }
-  .bu-tile:hover .bu-tile-foot-arrow { transform: none; }
+  .bu-tile:hover .bu-tile-foot-use-glyph { transform: none; }
 }
 
 .bu-card {

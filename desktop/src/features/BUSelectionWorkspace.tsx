@@ -101,8 +101,21 @@ export function BUSelectionWorkspace({ activeBU, onUse, onConfigure }: Props) {
                 >
                   Configure
                 </button>
-                <span className="bu-tile-foot-arrow" aria-hidden>
-                  {isSelected ? "✓" : "→"}
+                <span
+                  className={`bu-tile-foot-use${isSelected ? " bu-tile-foot-use--active" : ""}`}
+                  aria-hidden
+                >
+                  {isSelected ? (
+                    <>
+                      <span className="bu-tile-foot-use-glyph">✓</span>
+                      Active
+                    </>
+                  ) : (
+                    <>
+                      Use
+                      <span className="bu-tile-foot-use-glyph">→</span>
+                    </>
+                  )}
                 </span>
               </div>
             </article>
