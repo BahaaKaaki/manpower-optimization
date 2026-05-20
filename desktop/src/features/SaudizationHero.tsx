@@ -7,28 +7,18 @@ type Props = {
   optimizedTotal: number;
 };
 
-const RADIUS_OUTER = 64;
-const RADIUS_INNER = 50;
-const STROKE_OUTER = 12;
-const STROKE_INNER = 5;
-const SIZE = 160;
-const CENTER = SIZE / 2;
-const CIRC_OUTER = 2 * Math.PI * RADIUS_OUTER;
-const CIRC_INNER = 2 * Math.PI * RADIUS_INNER;
-
 /**
- * Hero Saudization card — promoted to its own row above the donut breakdown.
+ * Horizontal Saudization journey band — sits between the KPI strip and the
+ * donut breakdown. Single-row layout so the whole Results summary fits on a
+ * laptop screen.
  *
- * Layout:
- *  ┌───────────────────────────────────────────────────────────────────┐
- *  │  ┌────────┐    SAUDIZATION JOURNEY                                │
- *  │  │  ring  │    32.1% Saudis after optimization                    │
- *  │  │ gauge  │    [+8.7 pp ▲]                                        │
- *  │  └────────┘    From 89 to 124 Saudi employees · +35 positions     │
- *  └───────────────────────────────────────────────────────────────────┘
- *
- * The ring shows the OPTIMIZED rate as the bold outer arc; an inner thin
- * arc shows the CURRENT rate so the eye sees the delta at a glance.
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │ SAUDIZATION JOURNEY                          ▲ +8.7 pp · +22 Saudis│
+ *   │ 23.4% ─────────────────► 32.1%                                    │
+ *   │ ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
+ *   │ ▲ Current 23.4%       ▲ Optimized 32.1%                            │
+ *   │ From 361 to 383 in-house Saudis · excludes outsourced · pp = ...   │
+ *   └────────────────────────────────────────────────────────────────────┘
  */
 export function SaudizationHero({
   currentSaudi,
@@ -41,135 +31,95 @@ export function SaudizationHero({
   const optimizedRate = Math.max(0, Math.min(1, optimizedSaudi / safeOptimizedTotal));
   const currentRate = Math.max(0, Math.min(1, currentSaudi / safeCurrentTotal));
   const deltaPp = (optimizedRate - currentRate) * 100;
-
-  const animatedPct = useCountUp(optimizedRate * 100, 700);
+  const animatedOptimized = useCountUp(optimizedRate * 100, 700);
+  const animatedCurrent = useCountUp(currentRate * 100, 600);
 
   const tone =
     Math.abs(deltaPp) < 0.05 ? "flat" : deltaPp > 0 ? "up" : "down";
   const deltaGlyph = tone === "up" ? "▲" : tone === "down" ? "▼" : "●";
   const deltaSign = deltaPp > 0 ? "+" : "";
-
   const newSaudiPositions = Math.round(optimizedSaudi - currentSaudi);
+  const positionsChange =
+    newSaudiPositions > 0
+      ? `+${newSaudiPositions} Saudis`
+      : newSaudiPositions < 0
+        ? `${newSaudiPositions} Saudis`
+        : "no change in Saudi headcount";
 
-  // Compute strokeDashoffset for both arcs. Both arcs start at the top (rotated -90°).
-  const outerDashOffset = CIRC_OUTER * (1 - optimizedRate);
-  const innerDashOffset = CIRC_INNER * (1 - currentRate);
+  // Bar positions (0–100). Used both for fill widths and for marker placement.
+  const currentPct = currentRate * 100;
+  const optimizedPct = optimizedRate * 100;
 
   return (
     <div className="saudization-hero">
-      {/* Decorative flag-stripe motif in the top-right corner */}
       <span className="saudization-hero-motif" aria-hidden />
 
-      <div className="saudization-hero-ring-wrap">
-        <svg
-          viewBox={`0 0 ${SIZE} ${SIZE}`}
-          width={SIZE}
-          height={SIZE}
-          className="saudization-hero-ring"
-          role="img"
-          aria-label={`Optimized Saudization ${optimizedRate * 100}%, current ${currentRate * 100}%`}
-        >
-          {/* Outer track (unfilled remainder) */}
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS_OUTER}
-            fill="none"
-            stroke="rgba(255, 255, 255, 0.12)"
-            strokeWidth={STROKE_OUTER}
-          />
-          {/* Outer arc — OPTIMIZED rate */}
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS_OUTER}
-            fill="none"
-            stroke="url(#saudiHeroGradient)"
-            strokeWidth={STROKE_OUTER}
-            strokeLinecap="round"
-            strokeDasharray={CIRC_OUTER}
-            strokeDashoffset={outerDashOffset}
-            transform={`rotate(-90 ${CENTER} ${CENTER})`}
-            className="saudization-hero-ring-outer"
-          />
-          {/* Inner track */}
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS_INNER}
-            fill="none"
-            stroke="rgba(255, 255, 255, 0.06)"
-            strokeWidth={STROKE_INNER}
-          />
-          {/* Inner arc — CURRENT rate (dashed line evokes "the past") */}
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS_INNER}
-            fill="none"
-            stroke="rgba(255, 255, 255, 0.65)"
-            strokeWidth={STROKE_INNER}
-            strokeLinecap="round"
-            strokeDasharray="3 6"
-            transform={`rotate(-90 ${CENTER} ${CENTER})`}
-            style={{
-              strokeDasharray: `${CIRC_INNER * currentRate} ${CIRC_INNER}`,
-              strokeDashoffset: innerDashOffset,
-            }}
-            className="saudization-hero-ring-inner"
-          />
-          <defs>
-            <linearGradient id="saudiHeroGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#7fcc5e" />
-              <stop offset="100%" stopColor="#3e7d24" />
-            </linearGradient>
-          </defs>
-          <text
-            x={CENTER}
-            y={CENTER + 4}
-            textAnchor="middle"
-            className="saudization-hero-ring-value"
-          >
-            {animatedPct.toFixed(1)}%
-          </text>
-          <text
-            x={CENTER}
-            y={CENTER + 22}
-            textAnchor="middle"
-            className="saudization-hero-ring-caption"
-          >
-            {`current ${(currentRate * 100).toFixed(1)}%`}
-          </text>
-        </svg>
-      </div>
-
-      <div className="saudization-hero-body">
+      <div className="saudization-hero-head">
         <span className="saudization-hero-eyebrow">Saudization Journey</span>
-        <h3 className="saudization-hero-headline">
-          {(optimizedRate * 100).toFixed(1)}% Saudis after optimization
-        </h3>
         <span
           className={`saudization-hero-delta saudization-hero-delta--${tone}`}
-          aria-label={`${deltaSign}${deltaPp.toFixed(1)} percentage points vs current`}
-          title={`pp = percentage points (absolute difference between the two rates). Current ${(currentRate * 100).toFixed(1)}%, optimized ${(optimizedRate * 100).toFixed(1)}%.`}
+          title={`pp = percentage points (absolute difference between rates). Current ${currentPct.toFixed(1)}%, optimized ${optimizedPct.toFixed(1)}%.`}
+          aria-label={`${deltaSign}${deltaPp.toFixed(1)} percentage points, ${positionsChange}`}
         >
           <span aria-hidden>{deltaGlyph}</span>
-          {`${deltaSign}${deltaPp.toFixed(1)} pp vs current`}
+          {`${deltaSign}${deltaPp.toFixed(1)} pp`}
+          <span className="saudization-hero-delta-sep" aria-hidden>·</span>
+          <span className="saudization-hero-delta-positions">{positionsChange}</span>
         </span>
-        <p className="saudization-hero-sub">
-          From <strong>{Math.round(currentSaudi).toLocaleString()}</strong>
-          {" "}to <strong>{Math.round(optimizedSaudi).toLocaleString()}</strong> Saudi employees
-          {newSaudiPositions > 0
-            ? ` · +${newSaudiPositions} positions added`
-            : newSaudiPositions < 0
-              ? ` · ${Math.abs(newSaudiPositions)} positions reduced`
-              : ""}
-        </p>
-        <p className="saudization-hero-footnote">
-          Rate excludes outsourced workers (in-house Saudis ÷ in-house workforce, per Nitaqat).
-          <span className="saudization-hero-pp-help"> pp = percentage points.</span>
-        </p>
       </div>
+
+      <div className="saudization-hero-rates">
+        <span className="saudization-hero-rate saudization-hero-rate--current">
+          <span className="saudization-hero-rate-tag">Current</span>
+          <span className="saudization-hero-rate-value">{animatedCurrent.toFixed(1)}%</span>
+        </span>
+        <span className="saudization-hero-arrow" aria-hidden>──────►</span>
+        <span className="saudization-hero-rate saudization-hero-rate--optimized">
+          <span className="saudization-hero-rate-tag">Optimized</span>
+          <span className="saudization-hero-rate-value">{animatedOptimized.toFixed(1)}%</span>
+        </span>
+      </div>
+
+      <div
+        className="saudization-hero-bar"
+        role="img"
+        aria-label={`Saudization moves from ${currentPct.toFixed(1)}% to ${optimizedPct.toFixed(1)}%`}
+      >
+        {/* Ghost-fill: 0 → current. Sits behind the optimized fill. */}
+        <span
+          className="saudization-hero-bar-fill saudization-hero-bar-fill--current"
+          style={{ width: `${currentPct}%` }}
+          aria-hidden
+        />
+        {/* Optimized fill: 0 → optimized. Brighter green with flag-stripe at the leading edge. */}
+        <span
+          className="saudization-hero-bar-fill saudization-hero-bar-fill--optimized"
+          style={{ width: `${optimizedPct}%` }}
+          aria-hidden
+        />
+        {/* Markers — small wedges that pin Current and Optimized on the 0–100 axis. */}
+        <span
+          className="saudization-hero-bar-marker saudization-hero-bar-marker--current"
+          style={{ left: `${currentPct}%` }}
+          aria-hidden
+          title={`Current ${currentPct.toFixed(1)}%`}
+        />
+        <span
+          className="saudization-hero-bar-marker saudization-hero-bar-marker--optimized"
+          style={{ left: `${optimizedPct}%` }}
+          aria-hidden
+          title={`Optimized ${optimizedPct.toFixed(1)}%`}
+        />
+      </div>
+
+      <p className="saudization-hero-sub">
+        From <strong>{Math.round(currentSaudi).toLocaleString()}</strong>
+        {" "}to <strong>{Math.round(optimizedSaudi).toLocaleString()}</strong> in-house Saudis
+        {" "}<span className="saudization-hero-sep">·</span>{" "}
+        Excludes outsourced workers (Nitaqat){" "}
+        <span className="saudization-hero-sep">·</span>{" "}
+        pp = percentage points
+      </p>
     </div>
   );
 }

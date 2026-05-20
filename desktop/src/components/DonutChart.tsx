@@ -44,10 +44,12 @@ export function DonutChart({ title, subtitle, centerValue, centerLabel, items, t
 
   return (
     <article className="donut-card" onMouseLeave={() => setHoveredIndex(null)}>
-      <div className="chart-copy">
-        <p className="eyebrow">{subtitle}</p>
-        <h3>{title}</h3>
-      </div>
+      {(title || subtitle) ? (
+        <div className="chart-copy">
+          {subtitle ? <p className="eyebrow">{subtitle}</p> : null}
+          {title ? <h3>{title}</h3> : null}
+        </div>
+      ) : null}
       <div className="donut-layout">
         <div
           className="donut"

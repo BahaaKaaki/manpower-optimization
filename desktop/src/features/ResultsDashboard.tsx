@@ -538,10 +538,9 @@ export function ResultsDashboard({
     <section className="results-panel output-panel">
       <div className="output-summary-card">
         <div className="output-summary-head">
-          <div>
-            <span className="output-eyebrow">Output Summary</span>
-            <h2>Manpower Optimization Tool</h2>
-          </div>
+          {/* Topbar already shows "OUTPUT" — keep the head row light: just the mode pill +
+              status. Drops the redundant "Manpower Optimization Tool" h2 to claw back
+              ~50px of vertical space so the whole summary card fits on a laptop screen. */}
           <span className={`mode-pill ${isTargetMode ? "mode-pill--target" : "mode-pill--current"}`}>
             {isTargetMode ? "Target Manpower Plan" : "Optimize Current Payroll"}
           </span>
@@ -579,8 +578,8 @@ export function ResultsDashboard({
         <div className="output-breakdown-grid">
           <div className="output-breakdown-col">
             <DonutChart
-              title="Current Manpower Breakdown"
-              subtitle="Current"
+              title="Current"
+              subtitle=""
               centerValue={formatNumber(currentEmployees, 0)}
               centerLabel="Total"
               items={currentHeadcountChartItems}
@@ -592,8 +591,8 @@ export function ResultsDashboard({
           </div>
           <div className="output-breakdown-col">
             <DonutChart
-              title="Optimized Manpower Breakdown"
-              subtitle="Optimized"
+              title="Optimized"
+              subtitle=""
               centerValue={formatNumber(totalEmployees, 0)}
               centerLabel="Total"
               items={optimizedHeadcountChartItems}
