@@ -2114,8 +2114,9 @@ button, input, select {
   position: relative;
   overflow: hidden;
   /* Tight padding so the full summary (head + KPIs + Saudization + donuts)
-     fits on a 1366×768 laptop without scroll. */
-  padding: 18px 22px;
+     fits on a 1366×768 laptop without scroll. Bottom is tighter than top
+     so the Saudization captions don't sit in a sea of empty dark space. */
+  padding: 18px 22px 10px 22px;
   border: 1px solid rgba(127, 204, 94, 0.24);
   border-radius: var(--radius-xl);
   background:
@@ -2126,14 +2127,16 @@ button, input, select {
   box-shadow: 0 18px 48px rgba(7, 10, 13, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* Decorative diagonal-stripe overlay at the bottom of the card. Shrunk so it
+   doesn't paint over the Saudization captions any more. */
 .output-summary-card::after {
   content: "";
   position: absolute;
-  inset: auto -5% -18% -5%;
-  height: 30%;
+  inset: auto -5% -8% -5%;
+  height: 18%;
   background: repeating-linear-gradient(95deg, rgba(80, 156, 53, 0.16) 0 1px, transparent 1px 20px);
   transform: perspective(580px) rotateX(64deg);
-  opacity: 0.55;
+  opacity: 0.40;
   pointer-events: none;
 }
 
