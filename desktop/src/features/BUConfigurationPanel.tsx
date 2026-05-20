@@ -462,7 +462,7 @@ export function BUConfigurationPanel({ buCode, buName, onClose, onSaved }: Props
               <table className="bu-config-table">
                 <thead>
                   <tr>
-                    <th>Raw Profession</th>
+                    <th>Profession (in payroll)</th>
                     <th>Standardized Profession</th>
                   </tr>
                 </thead>
@@ -496,7 +496,7 @@ export function BUConfigurationPanel({ buCode, buName, onClose, onSaved }: Props
               <table className="bu-config-table">
                 <thead>
                   <tr>
-                    <th>Raw Activity</th>
+                    <th>Activity (in payroll)</th>
                     <th>Standardized Activity</th>
                   </tr>
                 </thead>

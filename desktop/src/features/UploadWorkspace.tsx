@@ -201,8 +201,8 @@ export function UploadWorkspace({
               <p>
                 Add the missing rows to <strong>{activeBUName ?? "the BU"}</strong>'s configuration
                 Excel — in the <strong>Job Families</strong> sheet (and the <strong>Profession Mapping</strong>
-                or <strong>Activity Mapping</strong> sheets if the raw values differ from the standard
-                ones). Then upload the updated Excel and try this payroll again.
+                or <strong>Activity Mapping</strong> sheets if the values from your payroll differ from
+                the standard ones). Then upload the updated Excel and try this payroll again.
               </p>
             </div>
           </div>

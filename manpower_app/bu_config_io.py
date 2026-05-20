@@ -55,7 +55,7 @@ DRIVER_SUPERVISORS = sorted([
 
 COST_ASSUMPTIONS = [
     ("Saudi pay premium", "How much more Saudi employees cost than non-Saudis (e.g. 1.10 = 10% more). Must be between 1.0 and 3.0. Blank = use the tool's default (1.10)."),
-    ("Outsource cost discount", "Fraction outsourced labor is cheaper than non-Saudi in-house (0.0–1.0). Blank = use the workbook's per-family value."),
+    ("Outsource cost discount", "Fraction outsourced labor is cheaper than non Saudi in-house (between 0.0 and 1.0). Blank = use the workbook's per-family value."),
 ]
 
 
@@ -221,23 +221,26 @@ def _build_readme_sheet(ws, bu_code: str, bu_name: str | None, is_empty: bool):
         instructions = (
             f"Skeleton workbook for {bu_code}. The mapping sheets are EMPTY (with a couple of "
             f"italic example rows for guidance). Fill them in with the values for THIS BU.\n\n"
-            "Workflow (matches the consultant's original approach):\n"
-            "  1) Profession Mapping — list every unique raw profession from your payroll and "
-            "map it to a standardized profession name.\n"
-            "  2) Activity Mapping — same, for raw location/area names.\n"
-            "  3) Job Families — for each unique (standardized Activity, standardized Profession) "
-            "pair, pick which canonical job family it belongs to and set the outsourceability.\n"
-            "  4) Ratios — set the max supervisor:worker ratio for each supervisor family.\n"
-            "  5) Drivers — list which (Activity, Profession) pairs count toward each supervisor.\n"
-            "  6) Cost Assumptions — Saudi pay premium + outsource cost discount.\n\n"
-            "Anything left blank falls back to the tool's defaults at engine time. The Job Families "
-            "sheet includes a side reference of the canonical family names + their default "
-            "outsourceability so you know which families to route your pairs into."
+            "Workflow (matches the consultant's original approach):\n\n"
+            "1) Profession Mapping. List every unique profession that appears in your "
+            "payroll and map it to a standardized profession name.\n"
+            "2) Activity Mapping. Same, for the location / area values in your payroll.\n"
+            "3) Job Families. For each unique (standardized Activity, standardized "
+            "Profession) pair, pick which canonical job family it belongs to and set "
+            "the outsourceability.\n"
+            "4) Ratios. Set the max supervisor:worker ratio for each supervisor family.\n"
+            "5) Drivers. List which (Activity, Profession) pairs count toward each "
+            "supervisor.\n"
+            "6) Cost Assumptions. Saudi pay premium + outsource cost discount.\n\n"
+            "Anything left blank falls back to the tool's defaults at engine time. The "
+            "Job Families sheet includes a side reference of the canonical family names "
+            "and their default outsourceability so you know which families to route your "
+            "pairs into."
         )
     else:
         instructions = (
-            "Current saved configuration for this BU. Edit any value to change it; clear a value "
-            "to fall back to the tool's default. Save and upload to apply."
+            "Current saved configuration for this BU. Edit any value to change it; clear "
+            "a value to fall back to the tool's default. Save and upload to apply."
         )
     ws["A4"] = instructions
     ws["A4"].alignment = Alignment(wrap_text=True, vertical="top")
@@ -248,15 +251,15 @@ def _build_readme_sheet(ws, bu_code: str, bu_name: str | None, is_empty: bool):
 
 
 def _build_profession_mapping_sheet(ws, config: BUConfigurationPayload):
-    ws.append(["Raw Profession", "Standardized Profession"])
+    ws.append(["Profession (in payroll)", "Standardized Profession"])
     _style_header_row(ws)
 
     if config.profession_mapping:
-        # Filled config — show user data merged with hardcoded defaults so the
+        # Filled config: show user data merged with hardcoded defaults so the
         # consultant has full visibility.
         rows = {**PROFESSION_MAPPING, **config.profession_mapping}
-        for raw, standardized in sorted(rows.items()):
-            ws.append([raw, standardized])
+        for payroll_value, standardized in sorted(rows.items()):
+            ws.append([payroll_value, standardized])
     else:
         # Empty config (e.g. UAAC, FAST). Emit a skeleton: 2 example rows in italic
         # so the user has a format hint, then plenty of blank rows to fill.
@@ -267,9 +270,9 @@ def _build_profession_mapping_sheet(ws, config: BUConfigurationPayload):
     ws.column_dimensions["B"].width = 32
     ws["D1"] = (
         "Fill this with your BU's data:\n"
-        "1) Extract the unique raw profession values from your payroll.\n"
+        "1) Extract the unique profession values from your payroll.\n"
         "2) For each, choose a STANDARDIZED profession name.\n"
-        "3) Replace the (example) rows and add one row per raw value.\n"
+        "3) Replace the (example) rows and add one row per value.\n"
         "Blank entries fall back to the tool's defaults."
     )
     ws["D1"].alignment = Alignment(wrap_text=True, vertical="top")
@@ -280,13 +283,13 @@ def _build_profession_mapping_sheet(ws, config: BUConfigurationPayload):
 
 
 def _build_activity_mapping_sheet(ws, config: BUConfigurationPayload):
-    ws.append(["Raw Activity", "Standardized Activity"])
+    ws.append(["Activity (in payroll)", "Standardized Activity"])
     _style_header_row(ws)
 
     if config.activity_mapping:
         rows = {**ACTIVITY_MAPPING, **config.activity_mapping}
-        for raw, standardized in sorted(rows.items()):
-            ws.append([raw, standardized])
+        for payroll_value, standardized in sorted(rows.items()):
+            ws.append([payroll_value, standardized])
     else:
         _append_example_row(ws, "(example) Production Plant", "Factory")
         _append_example_row(ws, "(example) Warehouse North", "Installation")
@@ -295,9 +298,9 @@ def _build_activity_mapping_sheet(ws, config: BUConfigurationPayload):
     ws.column_dimensions["B"].width = 28
     ws["D1"] = (
         "Fill this with your BU's data:\n"
-        "1) Extract the unique raw location/area values from your payroll.\n"
+        "1) Extract the unique location / area values from your payroll.\n"
         "2) For each, choose a STANDARDIZED activity name.\n"
-        "3) Replace the (example) rows and add one row per raw value.\n"
+        "3) Replace the (example) rows and add one row per value.\n"
         "Blank entries fall back to the tool's defaults."
     )
     ws["D1"].alignment = Alignment(wrap_text=True, vertical="top")
