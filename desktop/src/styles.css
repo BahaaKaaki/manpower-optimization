@@ -6631,7 +6631,15 @@ html {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+}
+
+/* Top row: eyebrow on the left, info help on the right */
+.saudization-showcase-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .saudization-showcase-eyebrow {
@@ -6642,7 +6650,18 @@ html {
   color: var(--accent-300, #b1de9a);
 }
 
-.saudization-showcase-row {
+.saudization-showcase-help {
+  font-size: 13px;
+  color: rgba(246, 250, 243, 0.42);
+  cursor: help;
+  transition: color var(--transition-fast);
+  user-select: none;
+}
+
+.saudization-showcase-help:hover { color: rgba(246, 250, 243, 0.92); }
+
+/* Headline row: hero rate + delta pill */
+.saudization-showcase-headline {
   display: flex;
   align-items: baseline;
   gap: 12px;
@@ -6683,27 +6702,51 @@ html {
   color: rgba(246, 250, 243, 0.72);
 }
 
-.saudization-showcase-help {
-  margin-left: auto;
-  font-size: 13px;
-  color: rgba(246, 250, 243, 0.40);
-  cursor: help;
-  transition: color var(--transition-fast);
+/* Mini-stat grid — labeled columns with vertical dividers replace the
+   dot-separated sub-line. Much more scannable. */
+.saudization-showcase-stats {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 18px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
 }
 
-.saudization-showcase-help:hover { color: rgba(246, 250, 243, 0.90); }
-
-.saudization-showcase-sub {
-  margin: 0;
-  font-size: 12px;
-  color: rgba(246, 250, 243, 0.62);
-  line-height: 1.45;
+.saudization-showcase-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 18px;
+  border-right: 1px solid rgba(255, 255, 255, 0.10);
 }
 
-.saudization-showcase-sub strong {
-  color: #ffffff;
+.saudization-showcase-stat:last-child {
+  padding-right: 0;
+  border-right: none;
+}
+
+.saudization-showcase-stat-label {
+  font-size: 9px;
   font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(246, 250, 243, 0.48);
+}
+
+.saudization-showcase-stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.saudization-showcase-stat-arrow {
+  color: var(--accent-400, var(--accent-500));
+  opacity: 0.65;
+  font-weight: 500;
 }
 
 @media (max-width: 720px) {
@@ -6711,6 +6754,18 @@ html {
   .saudization-showcase-flag { width: 64px; height: 44px; }
   .saudization-showcase-value { font-size: 30px; }
   .saudization-showcase-help { display: none; }
+  .saudization-showcase-stats {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .saudization-showcase-stat {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    padding-right: 0;
+    border-right: none;
+  }
+  .saudization-showcase-stat-value { white-space: normal; }
 }
 
 /* Legacy strip class kept as no-op stub (no consumers) */

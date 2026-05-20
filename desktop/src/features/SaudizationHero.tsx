@@ -10,17 +10,18 @@ type Props = {
 };
 
 /**
- * Saudization showcase card — single-row design that uses the Saudi flag as
- * the visual focal point, with the optimized rate as the hero number, delta
- * pill inline, and a single supporting line.
+ * Saudization showcase card.
  *
- *   ┌──────┐   SAUDIZATION
+ *   ┌──────┐   SAUDIZATION                                              ⓘ
  *   │      │
  *   │ 🇸🇦  │   32.1%    ▲ +8.7 pp
- *   │      │   ─
- *   └──────┘   From 23.4% · 361 → 383 in-house Saudis (+22 positions)
+ *   │      │   ─────────────────────────────────────────────
+ *   └──────┘   CURRENT │ IN-HOUSE SAUDIS │ NEW POSITIONS
+ *              23.4%   │ 361 → 383       │ +22 added
  *
- * Sits between the KPI grid and the donut breakdown. Height ~92px.
+ * Flag is the visual focal point (left); big optimized rate is the hero
+ * number; supporting stats live in a labeled mini-grid below for at-a-glance
+ * scannability (vs the previous dot-separated wall of text).
  */
 export function SaudizationHero({
   currentSaudi,
@@ -42,9 +43,9 @@ export function SaudizationHero({
   const newSaudiPositions = Math.round(optimizedSaudi - currentSaudi);
   const positionsLabel =
     newSaudiPositions > 0
-      ? `+${newSaudiPositions} positions added`
+      ? `+${newSaudiPositions} added`
       : newSaudiPositions < 0
-        ? `${Math.abs(newSaudiPositions)} positions reduced`
+        ? `${Math.abs(newSaudiPositions)} reduced`
         : "no change";
 
   return (
@@ -54,8 +55,18 @@ export function SaudizationHero({
       </div>
 
       <div className="saudization-showcase-body">
-        <span className="saudization-showcase-eyebrow">Saudization</span>
-        <div className="saudization-showcase-row">
+        <div className="saudization-showcase-head">
+          <span className="saudization-showcase-eyebrow">Saudization</span>
+          <span
+            className="saudization-showcase-help"
+            title="Rate = in-house Saudis ÷ in-house workforce (Nitaqat, excludes outsourced). pp = percentage points, the absolute difference between two rates."
+            aria-label="Saudization methodology"
+          >
+            ⓘ
+          </span>
+        </div>
+
+        <div className="saudization-showcase-headline">
           <span className="saudization-showcase-value">{animatedOptimized.toFixed(1)}%</span>
           <span
             className={`saudization-showcase-delta saudization-showcase-delta--${tone}`}
@@ -64,21 +75,26 @@ export function SaudizationHero({
             <span aria-hidden>{deltaGlyph}</span>
             {`${deltaSign}${deltaPp.toFixed(1)} pp`}
           </span>
-          <span
-            className="saudization-showcase-help"
-            title="Rate = in-house Saudis ÷ in-house workforce (Nitaqat, excludes outsourced). pp = percentage points."
-            aria-label="Saudization methodology"
-          >
-            ⓘ
-          </span>
         </div>
-        <p className="saudization-showcase-sub">
-          From <strong>{(currentRate * 100).toFixed(1)}%</strong> ·
-          {" "}<strong>{Math.round(currentSaudi).toLocaleString()}</strong>
-          {" "}→{" "}<strong>{Math.round(optimizedSaudi).toLocaleString()}</strong>
-          {" "}in-house Saudis ·
-          {" "}{positionsLabel}
-        </p>
+
+        <div className="saudization-showcase-stats" role="list">
+          <div className="saudization-showcase-stat" role="listitem">
+            <span className="saudization-showcase-stat-label">Current rate</span>
+            <span className="saudization-showcase-stat-value">{(currentRate * 100).toFixed(1)}%</span>
+          </div>
+          <div className="saudization-showcase-stat" role="listitem">
+            <span className="saudization-showcase-stat-label">In-house Saudis</span>
+            <span className="saudization-showcase-stat-value">
+              {Math.round(currentSaudi).toLocaleString()}
+              <span className="saudization-showcase-stat-arrow" aria-hidden> → </span>
+              {Math.round(optimizedSaudi).toLocaleString()}
+            </span>
+          </div>
+          <div className="saudization-showcase-stat" role="listitem">
+            <span className="saudization-showcase-stat-label">New positions</span>
+            <span className="saudization-showcase-stat-value">{positionsLabel}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
