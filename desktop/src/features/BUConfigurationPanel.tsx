@@ -69,6 +69,42 @@ export function BUConfigurationPanel({ buCode, buName, onClose, onSaved }: Props
       }
 
       if (stored) {
+        // Forward-migration for MGIC: legacy PR-#2 stored configs only carry
+        // outsourceability/ratios/drivers — the three new mapping dicts are missing,
+        // which would make the panel show "not configured" for those sections.
+        // Top up the missing dicts from the tool's canonical defaults so MGIC always
+        // appears fully configured. Other BUs are left alone (they're user-supplied).
+        const needsMigration =
+          buCode === "MGIC" &&
+          fetchedDefaults &&
+          (!stored.profession_mapping ||
+            Object.keys(stored.profession_mapping).length === 0 ||
+            !stored.activity_mapping ||
+            Object.keys(stored.activity_mapping).length === 0 ||
+            !stored.job_family_mapping ||
+            Object.keys(stored.job_family_mapping).length === 0);
+        if (needsMigration && fetchedDefaults) {
+          const migrated: BUConfiguration = {
+            ...stored,
+            profession_mapping:
+              stored.profession_mapping && Object.keys(stored.profession_mapping).length > 0
+                ? stored.profession_mapping
+                : { ...fetchedDefaults.profession_mapping },
+            activity_mapping:
+              stored.activity_mapping && Object.keys(stored.activity_mapping).length > 0
+                ? stored.activity_mapping
+                : { ...fetchedDefaults.activity_mapping },
+            job_family_mapping:
+              stored.job_family_mapping && Object.keys(stored.job_family_mapping).length > 0
+                ? stored.job_family_mapping
+                : { ...fetchedDefaults.job_family_mapping },
+          };
+          await persistSet(configKey(buCode), migrated);
+          if (cancelled) return;
+          setConfig(migrated);
+          setHasSavedConfig(true);
+          return;
+        }
         setConfig(stored);
         setHasSavedConfig(true);
         return;
@@ -80,6 +116,9 @@ export function BUConfigurationPanel({ buCode, buName, onClose, onSaved }: Props
       // user uploads a configuration for them.
       if (buCode === "MGIC" && fetchedDefaults) {
         const seeded: BUConfiguration = {
+          profession_mapping: { ...fetchedDefaults.profession_mapping },
+          activity_mapping: { ...fetchedDefaults.activity_mapping },
+          job_family_mapping: { ...fetchedDefaults.job_family_mapping },
           outsourceability_overrides: { ...fetchedDefaults.outsourceability },
           ratio_overrides: { ...fetchedDefaults.max_ratios },
           driver_overrides: { ...fetchedDefaults.drivers },
@@ -162,11 +201,23 @@ export function BUConfigurationPanel({ buCode, buName, onClose, onSaved }: Props
     );
   }
 
+  const professionMappingRows = hasSavedConfig && config.profession_mapping
+    ? Object.entries(config.profession_mapping).sort(([a], [b]) => a.localeCompare(b))
+    : [];
+  const activityMappingRows = hasSavedConfig && config.activity_mapping
+    ? Object.entries(config.activity_mapping).sort(([a], [b]) => a.localeCompare(b))
+    : [];
+  const jobFamilyMappingRows = hasSavedConfig && config.job_family_mapping
+    ? Object.entries(config.job_family_mapping).sort(([a], [b]) => a.localeCompare(b))
+    : [];
   const outsourceabilityRows = hasSavedConfig
     ? Object.entries(config.outsourceability_overrides).sort(([a], [b]) => a.localeCompare(b))
     : [];
   const ratioRows = hasSavedConfig
     ? Object.entries(config.ratio_overrides).sort(([a], [b]) => a.localeCompare(b))
+    : [];
+  const driverRows = hasSavedConfig
+    ? Object.entries(config.driver_overrides).sort(([a], [b]) => a.localeCompare(b))
     : [];
 
   return (
@@ -367,57 +418,149 @@ export function BUConfigurationPanel({ buCode, buName, onClose, onSaved }: Props
         </section>
       ) : (
         <>
-          {/* Sticky in-panel navigation. Tells the user there are 3 sections below
-              even before they scroll, and lets them jump directly to each one. */}
+          {/* Sticky in-panel navigation — 6 sections of the BU configuration. */}
           <nav className="bu-config-toc" aria-label="Configuration sections">
             <span className="bu-config-toc-label">Sections</span>
-            <a href="#bu-config-outsourceability" className="bu-config-toc-chip">
+            <a href="#bu-config-profession" className="bu-config-toc-chip">
               <span className="bu-config-toc-num">1</span>
-              Outsourceability
-              <span className="bu-config-toc-count">{outsourceabilityRows.length}</span>
+              Profession Mapping
+              <span className="bu-config-toc-count">{professionMappingRows.length}</span>
+            </a>
+            <a href="#bu-config-activity" className="bu-config-toc-chip">
+              <span className="bu-config-toc-num">2</span>
+              Activity Mapping
+              <span className="bu-config-toc-count">{activityMappingRows.length}</span>
+            </a>
+            <a href="#bu-config-job-families" className="bu-config-toc-chip">
+              <span className="bu-config-toc-num">3</span>
+              Job Families
+              <span className="bu-config-toc-count">{jobFamilyMappingRows.length}</span>
             </a>
             <a href="#bu-config-ratios" className="bu-config-toc-chip">
-              <span className="bu-config-toc-num">2</span>
+              <span className="bu-config-toc-num">4</span>
               Ratios
               <span className="bu-config-toc-count">{ratioRows.length}</span>
             </a>
+            <a href="#bu-config-drivers" className="bu-config-toc-chip">
+              <span className="bu-config-toc-num">5</span>
+              Drivers
+              <span className="bu-config-toc-count">{driverRows.length}</span>
+            </a>
+            <a href="#bu-config-cost-assumptions" className="bu-config-toc-chip">
+              <span className="bu-config-toc-num">6</span>
+              Cost Assumptions
+            </a>
           </nav>
 
-          <section className="bu-config-section" id="bu-config-outsourceability">
+          <section className="bu-config-section" id="bu-config-profession">
             <h3>
               <span className="bu-config-section-num">1</span>
-              Outsourceability per job family
-              <span className="bu-config-section-count">{outsourceabilityRows.length} families</span>
+              Profession Mapping
+              <span className="bu-config-section-count">{professionMappingRows.length} entries</span>
             </h3>
-            <table className="bu-config-table">
-              <thead>
-                <tr>
-                  <th>Job family</th>
-                  <th>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {outsourceabilityRows.length === 0 ? (
+            <div className="bu-config-table-scroll">
+              <table className="bu-config-table">
+                <thead>
                   <tr>
-                    <td colSpan={2} className="bu-config-empty-row">
-                      No job families configured.
-                    </td>
+                    <th>Profession (in payroll)</th>
+                    <th>Standardized Profession</th>
                   </tr>
-                ) : (
-                  outsourceabilityRows.map(([family, value]) => (
-                    <tr key={family}>
-                      <td>{family}</td>
-                      <td className="bu-config-active">{value}</td>
+                </thead>
+                <tbody>
+                  {professionMappingRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="bu-config-empty-row">
+                        No profession mapping configured.
+                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    professionMappingRows.map(([raw, std]) => (
+                      <tr key={raw}>
+                        <td>{raw}</td>
+                        <td className="bu-config-active">{std}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="bu-config-section" id="bu-config-activity">
+            <h3>
+              <span className="bu-config-section-num">2</span>
+              Activity Mapping
+              <span className="bu-config-section-count">{activityMappingRows.length} entries</span>
+            </h3>
+            <div className="bu-config-table-scroll">
+              <table className="bu-config-table">
+                <thead>
+                  <tr>
+                    <th>Activity (in payroll)</th>
+                    <th>Standardized Activity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activityMappingRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="bu-config-empty-row">
+                        No activity mapping configured.
+                      </td>
+                    </tr>
+                  ) : (
+                    activityMappingRows.map(([raw, std]) => (
+                      <tr key={raw}>
+                        <td>{raw}</td>
+                        <td className="bu-config-active">{std}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="bu-config-section" id="bu-config-job-families">
+            <h3>
+              <span className="bu-config-section-num">3</span>
+              Job Families
+              <span className="bu-config-section-count">{jobFamilyMappingRows.length} mappings · {outsourceabilityRows.length} families</span>
+            </h3>
+            <div className="bu-config-table-scroll">
+              <table className="bu-config-table">
+                <thead>
+                  <tr>
+                    <th>Activity · Profession</th>
+                    <th>Job Family</th>
+                    <th>Outsourceability</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobFamilyMappingRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="bu-config-empty-row">
+                        No job-family mapping configured.
+                      </td>
+                    </tr>
+                  ) : (
+                    jobFamilyMappingRows.map(([pair, family]) => (
+                      <tr key={pair}>
+                        <td>{pair}</td>
+                        <td className="bu-config-active">{family}</td>
+                        <td className="bu-config-active">
+                          {config.outsourceability_overrides[family] ?? ""}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           <section className="bu-config-section" id="bu-config-ratios">
             <h3>
-              <span className="bu-config-section-num">2</span>
+              <span className="bu-config-section-num">4</span>
               Supervisor : worker ratios
               <span className="bu-config-section-count">{ratioRows.length} supervisors</span>
             </h3>
@@ -443,6 +586,75 @@ export function BUConfigurationPanel({ buCode, buName, onClose, onSaved }: Props
                     </tr>
                   ))
                 )}
+              </tbody>
+            </table>
+          </section>
+
+          <section className="bu-config-section" id="bu-config-drivers">
+            <h3>
+              <span className="bu-config-section-num">5</span>
+              Drivers
+              <span className="bu-config-section-count">{driverRows.length} supervisor groups</span>
+            </h3>
+            <table className="bu-config-table">
+              <thead>
+                <tr>
+                  <th>Supervisor family</th>
+                  <th>Activity</th>
+                  <th>Profession</th>
+                </tr>
+              </thead>
+              <tbody>
+                {driverRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="bu-config-empty-row">
+                      No drivers configured.
+                    </td>
+                  </tr>
+                ) : (
+                  driverRows.flatMap(([family, entries]) =>
+                    entries.map((entry, idx) => (
+                      <tr key={`${family}-${idx}`}>
+                        <td>{idx === 0 ? family : ""}</td>
+                        <td>{entry.activity}</td>
+                        <td>{entry.profession}</td>
+                      </tr>
+                    ))
+                  )
+                )}
+              </tbody>
+            </table>
+          </section>
+
+          <section className="bu-config-section" id="bu-config-cost-assumptions">
+            <h3>
+              <span className="bu-config-section-num">6</span>
+              Cost Assumptions
+            </h3>
+            <table className="bu-config-table">
+              <thead>
+                <tr>
+                  <th>Knob</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Saudi pay premium</td>
+                  <td className="bu-config-active">
+                    {config.saudi_cost_premium != null
+                      ? `${config.saudi_cost_premium}× non-Saudi`
+                      : "Not set (uses tool default 1.10)"}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Outsource cost discount</td>
+                  <td className="bu-config-active">
+                    {config.outsource_cost_discount != null
+                      ? `${(config.outsource_cost_discount * 100).toFixed(0)}% cheaper than non-Saudi in-house`
+                      : "Not set (uses workbook value)"}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </section>

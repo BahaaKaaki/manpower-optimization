@@ -7,7 +7,6 @@ const workflowSteps: { id: AppStage; label: string }[] = [
   { id: "bu-selection", label: "BU Selection" },
   { id: "upload", label: "Data Upload" },
   { id: "mode", label: "Optimization Mode" },
-  { id: "mappings", label: "Additional Inputs" },
   { id: "ready", label: "User Assumptions" },
   { id: "results", label: "Output" },
 ];
@@ -36,6 +35,18 @@ function DownloadIcon() {
   );
 }
 
+function ExcelExportIcon() {
+  // Spreadsheet-grid mark with a small download arrow on top — reads as "Excel
+  // export" without being a literal Excel logo (avoids trademark territory).
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="2.5" y="3.5" width="11" height="9" rx="1.4" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M2.5 7.5h11M2.5 10.5h11M6 3.5v9M10 3.5v9" stroke="currentColor" strokeWidth="1.1" opacity="0.7" />
+      <path d="M8 5.2v2.4M8 7.6l-1.2-1M8 7.6l1.2-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ChevronLeftIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -57,7 +68,6 @@ const STAGE_ORDER: AppStage[] = [
   "bu-selection",
   "upload",
   "mode",
-  "mappings",
   "ready",
   "results",
 ];
@@ -65,7 +75,6 @@ const STAGE_LABELS: Record<AppStage, string> = {
   home: "Home Page",
   "bu-selection": "BU Selection",
   upload: "Data Upload",
-  mappings: "Additional Inputs",
   mode: "Optimization Mode",
   ready: "User Assumptions",
   results: "Output",
@@ -75,7 +84,6 @@ const stageTitles: Record<AppStage, { eyebrow: string }> = {
   home: { eyebrow: "Home Page" },
   "bu-selection": { eyebrow: "BU Selection" },
   upload: { eyebrow: "Data Upload" },
-  mappings: { eyebrow: "Additional Inputs" },
   mode: { eyebrow: "Optimization Mode" },
   ready: { eyebrow: "User Assumptions" },
   results: { eyebrow: "Output" },
@@ -197,8 +205,17 @@ export function AppShell({
           </div>
           <div className="topbar-actions">
             {stage === "results" && onDownload && (
-              <button className="btn btn-primary btn-sm" onClick={onDownload}>
-                <DownloadIcon /> Download Excel
+              <button
+                type="button"
+                className="topbar-export-btn"
+                onClick={onDownload}
+                aria-label="Export optimization results as Excel"
+              >
+                <ExcelExportIcon />
+                <span className="topbar-export-btn-text">
+                  <span className="topbar-export-btn-title">Export Results</span>
+                  <span className="topbar-export-btn-sub">XLSX · ready to download</span>
+                </span>
               </button>
             )}
           </div>

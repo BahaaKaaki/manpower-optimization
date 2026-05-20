@@ -540,46 +540,6 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
           ) : null}
         </div>
 
-        <div className="advanced-settings-block">
-          <AccordionSection
-            id="engine-config"
-            title="Cost configuration"
-            subtitle="Pay premium and outsource cost override applied to this scenario."
-            isOpen={openSections.has("engine-config")}
-            onToggle={toggleSection}
-          >
-            <FieldStack>
-              <NumberField
-                label="Saudi pay premium"
-                hint="How much more Saudi employees cost than non-Saudis (e.g. 1.10 = 10% more). Cannot go below 1.0."
-                min={1}
-                max={3}
-                step={0.05}
-                value={settings.saudi_cost_premium}
-                suffix="× non-Saudi"
-                onChange={(value) => onUpdate("saudi_cost_premium", value)}
-              />
-              <hr className="control-divider" />
-              <ToggleField
-                label="Override outsource cost"
-                hint="When on, outsource cost is set as a fraction of non-Saudi in-house cost."
-                checked={settings.outsource_cost_discount !== null}
-                onChange={(value) =>
-                  onUpdate("outsource_cost_discount", value ? 0.2 : (null as unknown as number))
-                }
-              />
-              <NumberField
-                label="Outsource discount vs non-Saudi"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings.outsource_cost_discount ?? 0}
-                disabled={settings.outsource_cost_discount === null}
-                onChange={(value) => onUpdate("outsource_cost_discount", value)}
-              />
-            </FieldStack>
-          </AccordionSection>
-        </div>
       </section>
     </>
   );

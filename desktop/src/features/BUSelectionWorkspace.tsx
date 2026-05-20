@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import type { BusinessUnit, BusinessUnitCode } from "../types";
 import { persistGet } from "../utils/persistence";
 
-import cpcHolding from "../assets/bu-logos/cpc-holding.png";
 import mgicLogo from "../assets/bu-logos/mgic.png";
 import uaacLogo from "../assets/bu-logos/uaac.png";
 import fastLogo from "../assets/bu-logos/fast.png";
@@ -31,10 +30,13 @@ export const BUSINESS_UNITS: BusinessUnit[] = [
 
 type Props = {
   activeBU: BusinessUnitCode | null;
-  onOpen: (code: BusinessUnitCode) => void;
+  // Tile click: set this BU as active and advance to Data Upload.
+  onUse: (code: BusinessUnitCode) => void;
+  // Edit icon click: open the BU Configuration panel for review/editing.
+  onConfigure: (code: BusinessUnitCode) => void;
 };
 
-export function BUSelectionWorkspace({ activeBU, onOpen }: Props) {
+export function BUSelectionWorkspace({ activeBU, onUse, onConfigure }: Props) {
   // A BU has a "custom" configuration when the user uploaded an Excel override file
   // for it. Otherwise the BU runs on the tool's defaults.which is a perfectly valid
   // state (so we never block selection on it).
@@ -59,74 +61,62 @@ export function BUSelectionWorkspace({ activeBU, onOpen }: Props) {
   return (
     <div className="bu-selection">
       <header className="bu-selection-hero">
-        <div className="bu-selection-hero-mark">
-          <img src={cpcHolding} alt="CPC Holding" />
-        </div>
-        <div className="bu-selection-hero-text">
-          <span className="bu-selection-hero-eyebrow">CPC Holding Group</span>
-          <h1>Choose your Business Unit</h1>
-          <p>
-            Each BU has its own configuration. Click a card to review the setup,
-            customize via Excel, and start optimizing.
-          </p>
-        </div>
+        <h1>Choose a Business Unit</h1>
       </header>
 
       <div className="bu-grid" role="list">
         {BUSINESS_UNITS.map((bu, idx) => {
           const isSelected = activeBU === bu.code;
-          const hasCustomConfig = customConfiguredBUs.has(bu.code);
           const shortName = bu.code.replace(/_/g, " ");
+          // hasCustomConfig is intentionally not surfaced — that's a Configure-panel concern.
+          customConfiguredBUs.has(bu.code);
           return (
-            <button
+            <article
               key={bu.code}
               role="listitem"
-              type="button"
-              className={`bu-card${hasCustomConfig ? " bu-card--custom" : " bu-card--defaults"}${
-                isSelected ? " bu-card--selected" : ""
-              }`}
-              onClick={() => onOpen(bu.code)}
-              aria-pressed={isSelected}
-              style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
+              className={`bu-tile${isSelected ? " bu-tile--selected" : ""}`}
+              style={{ animationDelay: `${idx * 50}ms` } as React.CSSProperties}
             >
-              {/* Accent bar at the very top that grows on hover */}
-              <span className="bu-card-rail" aria-hidden />
-
-              <div className="bu-card-status" aria-hidden>
-                <span className={`bu-card-status-dot bu-card-status-dot--${hasCustomConfig ? "custom" : "defaults"}`} />
-                {hasCustomConfig ? "Custom configuration" : "Using tool defaults"}
-              </div>
-
-              <div className="bu-card-logo">
+              <button
+                type="button"
+                className="bu-tile-body"
+                onClick={() => onUse(bu.code)}
+                aria-pressed={isSelected}
+                aria-label={isSelected ? `Continue with ${bu.name}` : `Use ${bu.name}`}
+              >
                 {bu.logoSrc ? (
-                  <img src={bu.logoSrc} alt={`${bu.name} logo`} />
+                  <img src={bu.logoSrc} alt={bu.name} />
                 ) : (
-                  <span className="bu-card-logo-placeholder-code">{shortName}</span>
+                  <span className="bu-tile-placeholder">{shortName}</span>
                 )}
-              </div>
-
-              <div className="bu-card-body">
-                <span className="bu-card-code">{shortName}</span>
-                <span className="bu-card-name">{bu.name}</span>
-              </div>
-
-              <div className="bu-card-footer">
-                <span className="bu-card-cta">
-                  {hasCustomConfig ? "Review configuration" : "Open and configure"}
+              </button>
+              <div className="bu-tile-foot">
+                <button
+                  type="button"
+                  className="bu-tile-foot-configure"
+                  onClick={() => onConfigure(bu.code)}
+                  aria-label={`Configure ${bu.name}`}
+                >
+                  Configure
+                </button>
+                <span
+                  className={`bu-tile-foot-use${isSelected ? " bu-tile-foot-use--active" : ""}`}
+                  aria-hidden
+                >
+                  {isSelected ? (
+                    <>
+                      <span className="bu-tile-foot-use-glyph">✓</span>
+                      Active
+                    </>
+                  ) : (
+                    <>
+                      Use
+                      <span className="bu-tile-foot-use-glyph">→</span>
+                    </>
+                  )}
                 </span>
-                <span className="bu-card-arrow" aria-hidden>
-                  <svg viewBox="0 0 16 16" fill="none">
-                    <path
-                      d="M3 8h10m0 0L9 4m4 4l-4 4"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
               </div>
-            </button>
+            </article>
           );
         })}
       </div>

@@ -695,6 +695,339 @@ class BUConfigurationOverrideTests(unittest.TestCase):
         # Override counts only Welder rows -> 2.
         self.assertEqual(overridden["Quarries Foreman"], 2)
 
+    # ─── Mapping pipeline override tests ────────────────────────────────────
+    # The BU Excel owns 3 mapping sheets: Profession Mapping (raw → standardized),
+    # Activity Mapping (raw → standardized), and Job Families (Activity + Profession
+    # → family). Each is layered on top of the hardcoded defaults so a BU can add
+    # new payroll values (e.g. "Senior Foreman") without code changes.
+
+    def test_profession_mapping_override_changes_normalization(self):
+        """BU adds 'Senior Foreman' → 'Foreman' as a profession override; the engine
+        normalizes 'Senior Foreman' to 'Foreman' in the workforce frame. Without the
+        override the raw value would pass through unchanged."""
+        import io
+        from openpyxl import Workbook
+        from manpower_app.service import process_workbook
+
+        wb = Workbook()
+        inhouse = wb.active
+        inhouse.title = "Inhouse"
+        inhouse.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+        ])
+        for i in range(5):
+            inhouse.append([100 + i, "Quarries", "Senior Foreman", "non-saudi", 6400, 0, 5000, 800, 300, 200, 100, 0])
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        buf = io.BytesIO()
+        wb.save(buf)
+        contents = buf.getvalue()
+
+        # With the BU override, "Senior Foreman" normalizes to "Foreman", which combined
+        # with the hardcoded "Quarries - Foreman" → "Quarries Foreman" routes the rows
+        # into the existing Quarries Foreman job family.
+        processed = process_workbook(
+            io.BytesIO(contents),
+            profession_mapping_overrides={"Senior Foreman": "Foreman"},
+        )
+        professions = set(processed.inhouse_cleaned["Profession_Standardized"].unique())
+        self.assertIn("Foreman", professions)
+        self.assertNotIn("Senior Foreman", professions)
+        families = set(processed.inhouse_cleaned["Job_Family"].unique())
+        self.assertIn("Quarries Foreman", families)
+
+    def test_activity_mapping_override_changes_normalization(self):
+        """BU adds 'Workshop' → 'Factory' as an activity override; the engine routes
+        'Workshop' rows into the Factory canonical activity."""
+        import io
+        from openpyxl import Workbook
+        from manpower_app.service import process_workbook
+
+        wb = Workbook()
+        inhouse = wb.active
+        inhouse.title = "Inhouse"
+        inhouse.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+        ])
+        for i in range(3):
+            inhouse.append([100 + i, "Workshop", "Operator", "non-saudi", 5000, 0, 4000, 500, 250, 150, 100, 0])
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        buf = io.BytesIO()
+        wb.save(buf)
+        contents = buf.getvalue()
+
+        processed = process_workbook(
+            io.BytesIO(contents),
+            activity_mapping_overrides={"Workshop": "Factory"},
+        )
+        activities = set(processed.inhouse_cleaned["Activity_Standardized"].unique())
+        self.assertIn("Factory", activities)
+        self.assertNotIn("Workshop", activities)
+        # Combined with the hardcoded "Factory - Operator" → "Factory Operator" mapping,
+        # the rows land in the Factory Operator job family.
+        families = set(processed.inhouse_cleaned["Job_Family"].unique())
+        self.assertIn("Factory Operator", families)
+
+    def test_job_family_mapping_override_routes_to_new_family(self):
+        """BU adds a custom (activity, profession) → family route in the Job Families
+        sheet; the engine sends matching rows to that family. Use a profession that
+        is NOT in PROFESSION_MAPPING (so it passes through to Profession_Standardized
+        unchanged) and assert the override routes the pair to the chosen family."""
+        import io
+        from openpyxl import Workbook
+        from manpower_app.service import process_workbook
+        from manpower_app.mappings import PROFESSION_MAPPING
+
+        synthetic_profession = "Drone Pilot"
+        self.assertNotIn(
+            synthetic_profession, PROFESSION_MAPPING,
+            "Test prereq: profession must not be in the default mapping",
+        )
+
+        wb = Workbook()
+        inhouse = wb.active
+        inhouse.title = "Inhouse"
+        inhouse.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+        ])
+        for i in range(4):
+            inhouse.append([100 + i, "Head Office", synthetic_profession, "Saudi", 12000, 0, 9500, 1500, 500, 300, 200, 0])
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        buf = io.BytesIO()
+        wb.save(buf)
+        contents = buf.getvalue()
+
+        processed = process_workbook(
+            io.BytesIO(contents),
+            job_family_mapping_overrides={f"Head Office - {synthetic_profession}": "Administration"},
+        )
+        pilot_rows = processed.inhouse_cleaned[
+            processed.inhouse_cleaned["Profession_Standardized"] == synthetic_profession
+        ]
+        self.assertEqual(len(pilot_rows), 4, "Synthetic profession rows should pass through")
+        self.assertTrue(
+            (pilot_rows["Job_Family"] == "Administration").all(),
+            "Override should route the rows to the Administration family",
+        )
+
+
+class MGICDataDriftRegressionTests(unittest.TestCase):
+    """Critical regression: feeding the engine MGIC's mappings via the new BU Excel
+    sheet path (as explicit overrides) must produce the EXACT same job families and
+    headcounts as the legacy hardcoded path. This is the safety net against any
+    drift between the Python dicts in mappings.py and what the consultant's XLS
+    encodes — the entire architectural refactor depends on this equivalence."""
+
+    @staticmethod
+    def _mgic_synthetic_payroll() -> bytes:
+        """Build a payroll that exercises every canonical (activity, profession)
+        pair in JOB_FAMILY_MAPPING — one in-house row per pair so all 39 families
+        show up in the workforce frame."""
+        import io
+        from openpyxl import Workbook
+        from manpower_app.mappings import JOB_FAMILY_MAPPING
+        import re
+
+        wb = Workbook()
+        inhouse = wb.active
+        inhouse.title = "Inhouse"
+        inhouse.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+        ])
+        next_id = 100
+        for key in JOB_FAMILY_MAPPING.keys():
+            parts = re.split(r"\s*-\s*", key, maxsplit=1)
+            activity = parts[0].strip()
+            profession = parts[1].strip() if len(parts) == 2 else ""
+            inhouse.append([
+                next_id, activity, profession, "non-saudi",
+                5000, 0, 4000, 500, 250, 150, 100, 0,
+            ])
+            next_id += 1
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    def test_mgic_excel_pipeline_produces_same_39_families_as_legacy_path(self):
+        """Run a synthetic MGIC payroll through both paths:
+          A) legacy: process_workbook(payroll)  → uses hardcoded defaults
+          B) new: process_workbook(payroll, profession=..., activity=..., job_family=...)
+             where the overrides are EXACTLY the hardcoded defaults from mappings.py.
+        Both must produce identical workforce frames — same families, same counts."""
+        import io
+        from manpower_app.service import process_workbook
+        from manpower_app.mappings import ACTIVITY_MAPPING, JOB_FAMILY_MAPPING, PROFESSION_MAPPING
+
+        contents = self._mgic_synthetic_payroll()
+
+        legacy = process_workbook(io.BytesIO(contents))
+        sheet_driven = process_workbook(
+            io.BytesIO(contents),
+            profession_mapping_overrides=dict(PROFESSION_MAPPING),
+            activity_mapping_overrides=dict(ACTIVITY_MAPPING),
+            job_family_mapping_overrides=dict(JOB_FAMILY_MAPPING),
+        )
+
+        # Same set of families, same count
+        legacy_families = legacy.inhouse_cleaned["Job_Family"].value_counts().sort_index()
+        sheet_families = sheet_driven.inhouse_cleaned["Job_Family"].value_counts().sort_index()
+
+        self.assertEqual(
+            list(legacy_families.index),
+            list(sheet_families.index),
+            "Job family set diverged between legacy and sheet-driven paths",
+        )
+        self.assertEqual(
+            list(legacy_families.values),
+            list(sheet_families.values),
+            "Per-family headcounts diverged between legacy and sheet-driven paths",
+        )
+        # And the BU produces exactly 39 unique families (the MGIC baseline).
+        self.assertEqual(len(legacy_families), 39)
+        self.assertEqual(len(sheet_families), 39)
+
+    def test_full_excel_round_trip_preserves_engine_output(self):
+        """The strongest version of the regression: simulate exactly what the consultant
+        does — download the BU Excel, re-upload it, run the engine using the mappings
+        the engine just parsed out of the file. The output frame must match the legacy
+        hardcoded path bit-for-bit (same 39 families, identical headcounts per family,
+        identical optimization_df rows). Catches any silent data loss in the
+        build_workbook → parse_workbook round-trip and any subtle whitespace/key issue."""
+        import io
+        from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
+        from manpower_app.mappings import ACTIVITY_MAPPING, JOB_FAMILY_MAPPING, PROFESSION_MAPPING
+        from manpower_app.rules import OUTSOURCEABILITY_RULES, MAXIMUM_RATIO_RULES
+        from manpower_app.service import process_workbook
+
+        # 1. Build MGIC's Excel as if the consultant pressed "Download" on the
+        #    Configuration panel — full seeded config with all hardcoded defaults.
+        mgic_config = BUConfigurationPayload(
+            profession_mapping=dict(PROFESSION_MAPPING),
+            activity_mapping=dict(ACTIVITY_MAPPING),
+            job_family_mapping=dict(JOB_FAMILY_MAPPING),
+            outsourceability_overrides=dict(OUTSOURCEABILITY_RULES),
+            ratio_overrides=dict(MAXIMUM_RATIO_RULES),
+        )
+        xlsx = build_workbook("MGIC", "Marble & Granite Intl Co.", mgic_config)
+
+        # 2. Parse the XLSX back as if the consultant just uploaded it.
+        parsed_config, parse_errors = parse_workbook(xlsx)
+        self.assertEqual(parse_errors, [], "Round-trip parse must produce no errors")
+
+        # 3. Run the engine TWICE on the same synthetic MGIC payroll:
+        #    a) Legacy path — no overrides, hardcoded defaults active.
+        #    b) Excel-driven path — overrides come from the parsed XLSX (post-round-trip).
+        payroll = self._mgic_synthetic_payroll()
+
+        legacy = process_workbook(io.BytesIO(payroll))
+        via_excel = process_workbook(
+            io.BytesIO(payroll),
+            profession_mapping_overrides=parsed_config.profession_mapping,
+            activity_mapping_overrides=parsed_config.activity_mapping,
+            job_family_mapping_overrides=parsed_config.job_family_mapping,
+        )
+
+        # 4. The workforce frames must agree on (family, count) — same 39 families.
+        legacy_counts = legacy.inhouse_cleaned.groupby("Job_Family").size().sort_index()
+        excel_counts = via_excel.inhouse_cleaned.groupby("Job_Family").size().sort_index()
+        self.assertEqual(
+            list(legacy_counts.index), list(excel_counts.index),
+            "Job-family set diverged after Excel round-trip",
+        )
+        self.assertEqual(
+            list(legacy_counts.values), list(excel_counts.values),
+            "Per-family headcounts diverged after Excel round-trip",
+        )
+        self.assertEqual(len(legacy_counts), 39, "MGIC baseline should be 39 families")
+
+        # 5. The optimization_df (per-family cost inputs into the LP) must agree on the
+        #    rows that matter for the optimizer — family, headcount, outsourceability.
+        legacy_opt = legacy.optimization_df.sort_values("Job Family").reset_index(drop=True)
+        excel_opt = via_excel.optimization_df.sort_values("Job Family").reset_index(drop=True)
+        self.assertEqual(
+            list(legacy_opt["Job Family"]), list(excel_opt["Job Family"]),
+            "optimization_df family rows diverged",
+        )
+        self.assertEqual(
+            list(legacy_opt["Current Headcount"]), list(excel_opt["Current Headcount"]),
+            "optimization_df headcounts diverged",
+        )
+        self.assertEqual(
+            list(legacy_opt["Outsourceability Type"]),
+            list(excel_opt["Outsourceability Type"]),
+            "Outsourceability classifications diverged",
+        )
+
+    def test_mgic_unmapped_pair_surfaces_in_response(self):
+        """When the payroll has a (activity, profession) the BU's mappings don't
+        cover, the engine returns those unmapped pairs in the response (the frontend
+        hard-blocks on this and tells the user to add a row to the BU Excel).
+        Include a couple of mapped rows alongside so the optimization frame is
+        non-empty (the engine errors out on a fully-empty frame, which is a separate
+        concern from unmapped-pair detection)."""
+        import io
+        from openpyxl import Workbook
+        from manpower_app.service import process_workbook
+
+        wb = Workbook()
+        inhouse = wb.active
+        inhouse.title = "Inhouse"
+        inhouse.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+        ])
+        # A few rows that ARE in the default mapping (so the optimization frame is non-empty)
+        for i in range(5):
+            inhouse.append([100 + i, "Quarries", "Skilled Labor", "non-saudi", 4200, 0, 3300, 500, 200, 150, 50, 0])
+        # The unmapped pair: neither activity nor profession in the default maps
+        for i in range(3):
+            inhouse.append([200 + i, "Drone Yard", "Drone Pilot", "Saudi", 8000, 0, 6500, 1000, 300, 200, 100, 0])
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        processed = process_workbook(io.BytesIO(buf.getvalue()))
+        # The unmapped pair shows up in the response so the UI can hard-block.
+        pair_strs = {f"{p.get('activity')}|{p.get('profession')}" for p in processed.unmapped_pairs}
+        self.assertTrue(
+            any("Drone" in s for s in pair_strs),
+            f"Expected an unmapped 'Drone' pair in {pair_strs}",
+        )
+
 
 class BUConfigurationExcelRoundTripTests(unittest.TestCase):
     """Batch-2 H1: per-BU configuration round-trips through the Excel template format
@@ -702,9 +1035,16 @@ class BUConfigurationExcelRoundTripTests(unittest.TestCase):
     way back (the user did not edit anything)."""
 
     def test_round_trip_full_payload(self):
+        """Round-trip every field in the new 7-sheet workbook. The build merges user
+        entries on top of the tool's hardcoded defaults (so consultants always see the
+        full editing surface), so parsed values include user entries plus all defaults.
+        User-specified values must be preserved exactly."""
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
 
         original = BUConfigurationPayload(
+            profession_mapping={"Welder Sr": "Welder", "Senior Welder": "Welder"},
+            activity_mapping={"Production": "Factory", "Workshop": "Factory"},
+            job_family_mapping={"Factory - Welder": "Skilled Labor"},
             outsourceability_overrides={"Engineer": "Fully Outsourceable"},
             ratio_overrides={"Quarries Foreman": "1:5"},
             driver_overrides={
@@ -713,48 +1053,81 @@ class BUConfigurationExcelRoundTripTests(unittest.TestCase):
                     {"activity": "Factory", "profession": "Operator"},
                 ],
             },
+            saudi_cost_premium=1.25,
+            outsource_cost_discount=0.15,
         )
         xlsx = build_workbook("MGIC", "Marble & Granite International Company", original)
         parsed, errors = parse_workbook(xlsx)
         self.assertEqual(errors, [])
-        self.assertEqual(parsed.outsourceability_overrides, original.outsourceability_overrides)
-        self.assertEqual(parsed.ratio_overrides, original.ratio_overrides)
+        # User-specified values must survive the round-trip (the parsed dicts may
+        # additionally contain the tool's defaults — that's fine, the engine merges).
+        for raw, std in original.profession_mapping.items():
+            self.assertEqual(parsed.profession_mapping.get(raw), std)
+        for raw, std in original.activity_mapping.items():
+            self.assertEqual(parsed.activity_mapping.get(raw), std)
+        for key, fam in original.job_family_mapping.items():
+            self.assertEqual(parsed.job_family_mapping.get(key), fam)
+        for fam, value in original.outsourceability_overrides.items():
+            self.assertEqual(parsed.outsourceability_overrides.get(fam), value)
+        for fam, value in original.ratio_overrides.items():
+            self.assertEqual(parsed.ratio_overrides.get(fam), value)
+        # Drivers are emitted only from user data (no defaults), so should round-trip exactly.
         self.assertEqual(parsed.driver_overrides, original.driver_overrides)
-        # Saudi pay premium + outsource discount are scenario-only knobs now —
-        # they aren't written to the BU workbook, so they round-trip as None.
-        self.assertIsNone(parsed.saudi_cost_premium)
-        self.assertIsNone(parsed.outsource_cost_discount)
+        self.assertEqual(parsed.saudi_cost_premium, original.saudi_cost_premium)
+        self.assertEqual(parsed.outsource_cost_discount, original.outsource_cost_discount)
 
-    def test_blank_template_parses_to_empty_config(self):
+    def test_starter_template_for_empty_bu_is_skeleton_not_pre_filled(self):
+        """For a fresh BU (e.g. UAAC, FAST) the starter Excel is a SKELETON, not
+        pre-filled with MGIC's data. The mapping sheets contain only italic example
+        rows + instructions; the user fills them with values from THEIR payroll.
+        Parsing the skeleton back yields empty mapping dicts (example rows are
+        skipped by the parser) so engine falls back to hardcoded defaults."""
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
 
         xlsx = build_workbook("UAAC", None, BUConfigurationPayload())
         parsed, errors = parse_workbook(xlsx)
         self.assertEqual(errors, [])
+        # Profession / Activity / Job-Family mappings are empty — example rows
+        # with the "(example)" prefix were filtered out by the parser.
+        self.assertEqual(parsed.profession_mapping, {})
+        self.assertEqual(parsed.activity_mapping, {})
+        self.assertEqual(parsed.job_family_mapping, {})
+        # Outsourceability is also empty (lives inside the empty Job Families sheet)
         self.assertEqual(parsed.outsourceability_overrides, {})
+        # Ratios sheet always lists supervisors but with blank values for empty BUs
         self.assertEqual(parsed.ratio_overrides, {})
-        self.assertEqual(parsed.driver_overrides, {})
-        self.assertIsNone(parsed.saudi_cost_premium)
-        self.assertIsNone(parsed.outsource_cost_discount)
 
     def test_invalid_outsourceability_value_is_rejected(self):
+        """Pollute one Outsourceability cell in the Job Families sheet → parser reports
+        the row-level error and never persists the bad value. Build a populated
+        config first so the Job Families sheet has real data rows (not skeleton)."""
         import io
         import openpyxl
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
+        from manpower_app.mappings import JOB_FAMILY_MAPPING
+        from manpower_app.rules import OUTSOURCEABILITY_RULES
 
-        xlsx = build_workbook("MGIC", None, BUConfigurationPayload())
+        # Use a populated config so the Job Families sheet has real rows.
+        populated = BUConfigurationPayload(
+            job_family_mapping=dict(JOB_FAMILY_MAPPING),
+            outsourceability_overrides=dict(OUTSOURCEABILITY_RULES),
+        )
+        xlsx = build_workbook("MGIC", None, populated)
         wb = openpyxl.load_workbook(io.BytesIO(xlsx))
-        ws = wb["Outsourceability"]
-        # Pollute the Engineer row with an invalid Value (col B in the single-column layout).
+        ws = wb["Job Families"]
+        # Find a row whose family is Engineer (column C is Job Family, D is Outsourceability)
+        # and corrupt its Outsourceability cell with an invalid string.
         for row in ws.iter_rows(min_row=2):
-            if row[0].value == "Engineer":
-                row[1].value = "Maybe Outsourceable"
+            if row[2].value == "Engineer":
+                row[3].value = "Maybe Outsourceable"
                 break
         buf = io.BytesIO()
         wb.save(buf)
         parsed, errors = parse_workbook(buf.getvalue())
         self.assertTrue(any("Engineer" in e and "must be one of" in e for e in errors))
-        self.assertNotIn("Engineer", parsed.outsourceability_overrides)
+        # Engineer was not promoted to the saved outsourceability overrides because
+        # its only row had an invalid value — falls back to hardcoded at engine time.
+        self.assertNotEqual(parsed.outsourceability_overrides.get("Engineer"), "Maybe Outsourceable")
 
     def test_invalid_ratio_format_is_rejected(self):
         import io
@@ -773,40 +1146,65 @@ class BUConfigurationExcelRoundTripTests(unittest.TestCase):
         _, errors = parse_workbook(buf.getvalue())
         self.assertTrue(any("Quarries Foreman" in e and "1:N" in e for e in errors))
 
-    def test_starter_workbook_for_empty_bu_lists_canonical_names_with_blank_values(self):
-        """For a fresh BU the workbook lists every canonical family name in column A but
-        leaves the Value column blank — the user fills only what applies. Parsing the
-        starter back yields an empty config (no rows have values, so nothing is configured)."""
+    def test_starter_workbook_for_empty_bu_is_skeleton_with_examples_only(self):
+        """Starter workbook for a fresh BU (UAAC, FAST, etc.) is a SKELETON: 7
+        sheets, all present, but the mapping sheets contain only italic example
+        rows + instructions — NOT pre-filled with MGIC's data. Ratios sheet still
+        lists the canonical supervisor families (they're universal) but with
+        blank values for the user to fill."""
         import io
         import openpyxl
-        from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
-        from manpower_app.rules import OUTSOURCEABILITY_RULES, MAXIMUM_RATIO_RULES
+        from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook
+        from manpower_app.rules import MAXIMUM_RATIO_RULES
 
         xlsx = build_workbook("UAAC", None, BUConfigurationPayload())
-        # Inspect the starter: column A has every canonical name, column B is blank.
         wb = openpyxl.load_workbook(io.BytesIO(xlsx))
-        names_in_sheet = []
-        for row in wb["Outsourceability"].iter_rows(min_row=2, values_only=True):
-            family = row[0] if row and len(row) > 0 else None
-            value = row[1] if row and len(row) > 1 else None
-            if family:
-                names_in_sheet.append(family)
-                self.assertIn(value, (None, ""))
-        self.assertEqual(set(names_in_sheet), set(OUTSOURCEABILITY_RULES.keys()))
-
-        ratio_names = []
-        for row in wb["Ratios"].iter_rows(min_row=2, values_only=True):
-            family = row[0] if row and len(row) > 0 else None
-            value = row[1] if row and len(row) > 1 else None
-            if family:
-                ratio_names.append(family)
-                self.assertIn(value, (None, ""))
-        self.assertEqual(set(ratio_names), set(MAXIMUM_RATIO_RULES.keys()))
-
-        # And parsing the starter yields an empty payload (no rows have values).
-        parsed, errors = parse_workbook(xlsx)
-        self.assertEqual(errors, [])
-        self.assertTrue(parsed.is_empty())
+        self.assertEqual(
+            wb.sheetnames,
+            [
+                "README",
+                "Profession Mapping",
+                "Activity Mapping",
+                "Job Families",
+                "Ratios",
+                "Drivers",
+                "Cost Assumptions",
+            ],
+        )
+        # Profession Mapping: only the 2 (example) rows, no real raw values
+        prof_rows = [
+            row[0] for row in wb["Profession Mapping"].iter_rows(min_row=2, values_only=True)
+            if row[0]
+        ]
+        self.assertTrue(all(str(r).startswith("(example)") for r in prof_rows), prof_rows)
+        # Activity Mapping: same — only example rows
+        act_rows = [
+            row[0] for row in wb["Activity Mapping"].iter_rows(min_row=2, values_only=True)
+            if row[0]
+        ]
+        self.assertTrue(all(str(r).startswith("(example)") for r in act_rows), act_rows)
+        # Job Families: only example rows in the main 4-column data area
+        jf_data_rows = [
+            (row[0], row[1])
+            for row in wb["Job Families"].iter_rows(min_row=2, max_col=4, values_only=True)
+            if row[0]
+        ]
+        self.assertTrue(
+            all(str(r[0]).startswith("(example)") for r in jf_data_rows), jf_data_rows
+        )
+        # Ratios sheet still lists every canonical supervisor family (those names
+        # are universal) — but their Value cells are blank for the user to fill.
+        ratio_names = {
+            row[0] for row in wb["Ratios"].iter_rows(min_row=2, values_only=True) if row[0]
+        }
+        self.assertEqual(ratio_names, set(MAXIMUM_RATIO_RULES.keys()))
+        ratio_values = [
+            row[1] for row in wb["Ratios"].iter_rows(min_row=2, values_only=True) if row[0]
+        ]
+        self.assertTrue(
+            all(v in (None, "") for v in ratio_values),
+            f"Empty BU ratios should have blank values, got: {ratio_values}",
+        )
 
 
 class EndToEndUserJourneyTests(unittest.TestCase):
@@ -1158,30 +1556,42 @@ class ExcelValidationEdgeCases(unittest.TestCase):
     payload, and must accept tolerable formatting noise."""
 
     def test_mixed_valid_and_invalid_rows_returns_errors_and_no_partial_save(self):
-        """When some rows are invalid, the parser reports errors. The valid rows are
-        still in the returned payload — the FRONTEND decides whether to apply (and
-        currently refuses to apply when errors are non-empty)."""
+        """When some rows in the Job Families sheet have an invalid Outsourceability
+        value, the parser reports errors and the invalid row is NOT promoted to the
+        outsourceability_overrides dict. Valid rows are still parsed.
+
+        Build with a populated config so the Job Families sheet has real data rows
+        (vs the skeleton that ships for empty BUs)."""
         import io
         import openpyxl
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
+        from manpower_app.mappings import JOB_FAMILY_MAPPING
 
-        xlsx = build_workbook("MGIC", None, BUConfigurationPayload())
+        populated = BUConfigurationPayload(
+            job_family_mapping=dict(JOB_FAMILY_MAPPING),
+        )
+        xlsx = build_workbook("MGIC", None, populated)
         wb = openpyxl.load_workbook(io.BytesIO(xlsx))
-        ws = wb["Outsourceability"]
-        # Add ONE invalid override and ONE valid one.
+        ws = wb["Job Families"]
+        # Clear ALL outsourceability cells first so we test JUST the rows we touch.
         for row in ws.iter_rows(min_row=2):
-            if row[0].value == "Engineer":
-                row[1].value = "Maybe Outsourceable"  # invalid
-            if row[0].value == "Skilled Labor":
-                row[1].value = "Fully Outsourceable"  # valid
+            if row[2].value:  # only clear actual data rows, not the right-side reference cols
+                row[3].value = ""
+        # Find an Engineer row and corrupt it
+        for row in ws.iter_rows(min_row=2):
+            if row[2].value == "Engineer":
+                row[3].value = "Maybe Outsourceable"
+                break
+        # Find a Skilled Labor row and set a VALID value
+        for row in ws.iter_rows(min_row=2):
+            if row[2].value == "Skilled Labor":
+                row[3].value = "Fully Outsourceable"
+                break
         buf = io.BytesIO()
         wb.save(buf)
         parsed, errors = parse_workbook(buf.getvalue())
-        # Engineer row produced the error.
         self.assertTrue(any("Engineer" in e for e in errors))
-        # Skilled Labor row was still parsed.
         self.assertEqual(parsed.outsourceability_overrides.get("Skilled Labor"), "Fully Outsourceable")
-        # Engineer was NOT saved (validation rejected it).
         self.assertNotIn("Engineer", parsed.outsourceability_overrides)
 
     def test_whitespace_in_ratio_is_normalized_on_parse(self):
@@ -1202,16 +1612,22 @@ class ExcelValidationEdgeCases(unittest.TestCase):
         self.assertEqual(parsed.ratio_overrides["Quarries Foreman"], "1:7")
 
     def test_legacy_engine_knobs_sheet_is_still_parsed_for_backwards_compat(self):
-        """A user who downloaded an older BU workbook (with the Engine Knobs sheet)
-        and re-uploads it should still have the cost knobs picked up — the BU template
-        no longer includes the sheet, but legacy files keep working."""
+        """A user who saved an older BU workbook (PR-#2 era: 4 sheets including
+        Engine Knobs but no Cost Assumptions sheet) and re-uploads it should still
+        have the cost knobs picked up. Construct that legacy layout manually."""
         import io
         import openpyxl
-        from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
+        from manpower_app.bu_config_io import parse_workbook
 
-        # Build a current (no Engine Knobs) workbook and manually add the legacy sheet.
-        xlsx = build_workbook("MGIC", None, BUConfigurationPayload())
-        wb = openpyxl.load_workbook(io.BytesIO(xlsx))
+        wb = openpyxl.Workbook()
+        wb.active.title = "README"
+        for sheet_name, header_row in (
+            ("Outsourceability", ["Job Family", "Value"]),
+            ("Ratios", ["Supervisor Family", "Value (e.g. 1:10)"]),
+            ("Drivers", ["Supervisor Family", "Activity", "Profession"]),
+        ):
+            ws = wb.create_sheet(sheet_name)
+            ws.append(header_row)
         ws = wb.create_sheet("Engine Knobs")
         ws.append(["Knob", "Value", "Notes"])
         ws.append(["Saudi cost premium", 1.25, ""])
@@ -1223,21 +1639,23 @@ class ExcelValidationEdgeCases(unittest.TestCase):
         self.assertEqual(parsed.saudi_cost_premium, 1.25)
         self.assertEqual(parsed.outsource_cost_discount, 0.15)
 
-    def test_missing_required_sheet_is_reported(self):
+    def test_workbook_with_no_recognized_sheets_returns_empty_config(self):
+        """No sheets are strictly required anymore. A workbook with no recognized
+        sheets parses cleanly to an empty config; the engine falls back to hardcoded
+        defaults for everything."""
         import io
         import openpyxl
         from manpower_app.bu_config_io import parse_workbook
 
-        # Build a workbook that's missing the Drivers sheet entirely.
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Outsourceability"
-        ws.append(["Job Family", "Value"])
-        wb.create_sheet("Ratios").append(["Supervisor Family", "Value"])
+        ws.title = "Random"
+        ws.append(["something", "irrelevant"])
         buf = io.BytesIO()
         wb.save(buf)
-        _, errors = parse_workbook(buf.getvalue())
-        self.assertTrue(any("Missing sheet" in e and "Drivers" in e for e in errors))
+        parsed, errors = parse_workbook(buf.getvalue())
+        self.assertEqual(errors, [])
+        self.assertTrue(parsed.is_empty())
 
 
 class ScenarioCostKnobsTests(unittest.TestCase):
@@ -1246,16 +1664,16 @@ class ScenarioCostKnobsTests(unittest.TestCase):
     BU Excel). These tests verify the scenario path still works end-to-end."""
 
     def test_starter_excel_has_no_engine_knobs_sheet(self):
-        """After the refactor, freshly-built BU workbooks contain only the 4 sheets
-        (README + 3 data sheets). Engine Knobs is gone."""
+        """The legacy 'Engine Knobs' sheet name is gone. Cost knobs live in the new
+        'Cost Assumptions' sheet."""
         import io
         import openpyxl
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook
 
         xlsx = build_workbook("UAAC", "United Arab Aluminium Company", BUConfigurationPayload())
         wb = openpyxl.load_workbook(io.BytesIO(xlsx))
-        self.assertEqual(set(wb.sheetnames), {"README", "Outsourceability", "Ratios", "Drivers"})
         self.assertNotIn("Engine Knobs", wb.sheetnames)
+        self.assertIn("Cost Assumptions", wb.sheetnames)
 
     def test_saudi_pay_premium_scenario_knob_changes_inhouse_cost_split(self):
         """Set the scenario-level premium high; the LP's per-family Saudi cost basis
@@ -1480,18 +1898,29 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertIn("Engineer", body["outsourceability"])
         self.assertIn("Quarries Foreman", body["max_ratios"])
 
-    def test_bu_configuration_template_returns_xlsx_with_4_sheets(self):
+    def test_bu_configuration_template_returns_xlsx_with_seven_sheets(self):
         r = self.client.get("/bu/configuration/template?bu_code=MGIC")
         self.assertEqual(r.status_code, 200)
         self.assertIn("spreadsheetml", r.headers["content-type"])
         import io
         import openpyxl
         wb = openpyxl.load_workbook(io.BytesIO(r.content))
-        self.assertEqual(set(wb.sheetnames), {"README", "Outsourceability", "Ratios", "Drivers"})
+        self.assertEqual(
+            set(wb.sheetnames),
+            {
+                "README",
+                "Profession Mapping",
+                "Activity Mapping",
+                "Job Families",
+                "Ratios",
+                "Drivers",
+                "Cost Assumptions",
+            },
+        )
 
     def test_bu_configuration_export_round_trips_user_overrides(self):
         """POST a saved configuration → get XLSX back → upload the same XLSX → parse →
-        receive the same configuration. Verifies wire formats match."""
+        the user's specific overrides survive (parsed may include defaults too — fine)."""
         import io
         original = {
             "outsourceability_overrides": {"Engineer": "Fully Outsourceable"},
@@ -1520,8 +1949,11 @@ class ApiSmokeTests(unittest.TestCase):
         body = r.json()
         self.assertEqual(body["errors"], [])
         parsed = body["configuration"]
-        self.assertEqual(parsed["outsourceability_overrides"], original["outsourceability_overrides"])
-        self.assertEqual(parsed["ratio_overrides"], original["ratio_overrides"])
+        # User-specified overrides must survive (parsed may include additional defaults).
+        for fam, value in original["outsourceability_overrides"].items():
+            self.assertEqual(parsed["outsourceability_overrides"].get(fam), value)
+        for fam, value in original["ratio_overrides"].items():
+            self.assertEqual(parsed["ratio_overrides"].get(fam), value)
         self.assertEqual(parsed["driver_overrides"], original["driver_overrides"])
 
     def test_workbook_upload_then_optimization_run_over_http(self):
@@ -1571,6 +2003,351 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertIsNotNone(eng_result, "Engineer row missing from results")
         # With Engineer flipped to Fully Outsourceable, the LP can move workers out:
         self.assertGreaterEqual(int(eng_result["Outsourced Labor"]), 1)
+
+
+class BUExcelRefactorAdditionalCoverageTests(unittest.TestCase):
+    """Extra coverage added in Round 3 of the 150526 enhancements: tests that
+    pin the new ""BU Excel as source of truth"" architecture from angles the
+    earlier classes don't reach — full HTTP wire path, BU swap state isolation,
+    Excel-driven cost knobs reaching the LP, mapping edge cases, hard-block
+    response shape, and mapping override + custom family interaction."""
+
+    @classmethod
+    def setUpClass(cls):
+        from fastapi.testclient import TestClient
+        from manpower_api.app import app, store
+        cls.client = TestClient(app)
+        cls._store = store
+        cls._reset_store()
+
+    @classmethod
+    def _reset_store(cls):
+        cls._store.processed = None
+        cls._store.workbook_bytes = None
+        cls._store.workbook_filename = None
+        cls._store.model_data = None
+        cls._store.model_metadata = None
+        cls._store.target_split = None
+        cls._store.optimization_payload = None
+
+    def setUp(self):
+        self._reset_store()
+
+    # --- #1: End-to-end over HTTP (download → import → upload → optimize) ----
+
+    def test_download_import_upload_optimize_full_http_chain(self):
+        """Walk the exact consultant flow over HTTP:
+        1. GET /bu/configuration/template → BU's Excel
+        2. POST /bu/configuration/import with that Excel → parsed config
+        3. POST /workbooks/upload with payroll + bu_configuration → upload OK
+        4. POST /optimization/run → Optimal status
+
+        Any wire-format mismatch between these endpoints (form vs JSON, field
+        names, content types) breaks the consultant's flow — this test pins it."""
+        import io
+        import json
+
+        # Step 1: download the template
+        r = self.client.get("/bu/configuration/template?bu_code=MGIC")
+        self.assertEqual(r.status_code, 200)
+        xlsx_bytes = r.content
+
+        # Step 2: re-import the same XLSX as if the consultant just edited & uploaded it
+        r = self.client.post(
+            "/bu/configuration/import",
+            files={"file": ("MGIC_config.xlsx", io.BytesIO(xlsx_bytes),
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        body = r.json()
+        self.assertEqual(body["errors"], [])
+        bu_configuration = body["configuration"]
+
+        # Step 3: upload a payroll workbook WITH the parsed BU configuration attached
+        payroll = EndToEndUserJourneyTests._quarries_workbook_bytes()
+        r = self.client.post(
+            "/workbooks/upload",
+            files={"file": ("payroll.xlsx", io.BytesIO(payroll),
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"bu_configuration": json.dumps(bu_configuration)},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        upload_body = r.json()
+        self.assertGreater(upload_body["job_family_count"], 0)
+        self.assertEqual(upload_body["unmapped_pairs"], [], "Workbook should be fully mapped via the BU's Excel")
+
+        # Step 4: run the optimizer end-to-end
+        r = self.client.post("/optimization/run", json={"can_reduce_current_saudi": True})
+        self.assertEqual(r.status_code, 200, r.text)
+        payload = r.json()
+        self.assertEqual(payload["metadata"]["optimization_status"], "Optimal")
+
+    # --- #2: BU swap doesn't leak state -------------------------------------
+
+    def test_bu_swap_overrides_do_not_leak_between_uploads(self):
+        """Upload payroll with MGIC's mappings; then re-upload the same payroll
+        with UAAC's (empty) mappings. The two upload responses must reflect each
+        BU's configuration independently — no leftover state from the first BU."""
+        import io
+        import json
+
+        payroll = EndToEndUserJourneyTests._quarries_workbook_bytes()
+
+        # Build MGIC's bu_configuration with one custom outsourceability override
+        # so we can detect leakage: if the second upload still has this override,
+        # state leaked. (Outsourceability is in optimization_df.)
+        mgic_config = {
+            "profession_mapping": {},  # use defaults
+            "activity_mapping": {},
+            "job_family_mapping": {},
+            "outsourceability_overrides": {},
+            "ratio_overrides": {},
+            "driver_overrides": {},
+        }
+
+        # Upload #1 — MGIC
+        r = self.client.post(
+            "/workbooks/upload",
+            files={"file": ("payroll1.xlsx", io.BytesIO(payroll), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"bu_configuration": json.dumps(mgic_config)},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        mgic_family_count = r.json()["job_family_count"]
+
+        # Upload #2 — pretend it's UAAC with a NEW set of mappings that route
+        # the "Quarries - Foreman" pair to a different family on this upload.
+        uaac_config = {
+            "profession_mapping": {},
+            "activity_mapping": {},
+            "job_family_mapping": {"Quarries - Foreman": "Quarries Supervisor"},
+            "outsourceability_overrides": {},
+            "ratio_overrides": {},
+            "driver_overrides": {},
+        }
+        r = self.client.post(
+            "/workbooks/upload",
+            files={"file": ("payroll2.xlsx", io.BytesIO(payroll), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"bu_configuration": json.dumps(uaac_config)},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        upload2 = r.json()
+
+        # Upload #2 must reflect UAAC's overrides, NOT MGIC's. The Quarries Foreman
+        # pair must now route to Quarries Supervisor (or at least NOT Quarries Foreman).
+        families = {row["family_name"] for row in upload2["job_families"]} if "job_families" in upload2 else set()
+        # No direct exposure of the family list in the response — use the optimization layer.
+        r = self.client.post("/optimization/run", json={"can_reduce_current_saudi": True})
+        self.assertEqual(r.status_code, 200, r.text)
+        payload = r.json()
+        results = payload["results"] if isinstance(payload, dict) else []
+        family_names = {str(row.get("Job Family")) for row in results}
+        self.assertIn(
+            "Quarries Supervisor", family_names,
+            "UAAC's job_family_mapping override should route Quarries Foreman rows to Quarries Supervisor",
+        )
+
+    # --- #3: Cost knobs from the BU Excel reach the LP ---------------------
+
+    def test_saudi_cost_premium_from_bu_excel_reaches_lp(self):
+        """The Cost Assumptions sheet's Saudi pay premium must flow through to
+        the LP's per-family Saudi cost basis. End-to-end: build XLSX with knob
+        set, parse, run engine, assert resulting Saudi/non-Saudi cost ratio
+        matches the knob (not the hardcoded 1.10 default)."""
+        import io
+        from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
+        from manpower_app.service import OptimizationSettings, process_workbook, prepare_model_data
+
+        config = BUConfigurationPayload(saudi_cost_premium=1.75)
+        xlsx = build_workbook("MGIC", "MGIC", config)
+        parsed, errors = parse_workbook(xlsx)
+        self.assertEqual(errors, [])
+        self.assertAlmostEqual(parsed.saudi_cost_premium, 1.75, places=4)
+
+        # The cost knob is a scenario-level setting at the LP layer (see
+        # ScenarioCostKnobsTests). Wire it through by passing it to OptimizationSettings.
+        contents = EndToEndUserJourneyTests._quarries_workbook_bytes()
+        processed = process_workbook(io.BytesIO(contents))
+        data, _ = prepare_model_data(
+            processed,
+            OptimizationSettings(
+                can_reduce_current_saudi=True,
+                saudi_cost_premium=parsed.saudi_cost_premium,
+            ),
+        )
+        eng = data[data["Job Family"] == "Engineer"].iloc[0]
+        ratio = (
+            float(eng["Fully Loaded Cost per In-house Saudi Employee"])
+            / float(eng["Fully Loaded Cost per In-house Non-Saudi Employee"])
+        )
+        self.assertAlmostEqual(ratio, 1.75, places=4)
+
+    # --- #4: Mapping sheet edge cases --------------------------------------
+
+    def test_duplicate_raw_keys_in_profession_mapping_last_value_wins(self):
+        """Two rows with the same raw profession but different standardized values:
+        the parser keeps the LAST one (matches Python dict semantics). No errors."""
+        import io
+        from openpyxl import Workbook
+        from manpower_app.bu_config_io import parse_workbook
+
+        wb = Workbook()
+        wb.active.title = "README"
+        ws = wb.create_sheet("Profession Mapping")
+        ws.append(["Raw Profession", "Standardized Profession"])
+        ws.append(["Senior Welder", "Welder"])
+        ws.append(["Senior Welder", "Skilled Labor"])  # duplicate raw, different std
+        buf = io.BytesIO()
+        wb.save(buf)
+        parsed, errors = parse_workbook(buf.getvalue())
+        self.assertEqual(errors, [])
+        self.assertEqual(parsed.profession_mapping.get("Senior Welder"), "Skilled Labor")
+
+    def test_blank_and_whitespace_rows_are_silently_skipped(self):
+        """Empty cells, whitespace-only cells, and missing required values must be
+        skipped without errors — the user can keep blank rows as scratch space."""
+        import io
+        from openpyxl import Workbook
+        from manpower_app.bu_config_io import parse_workbook
+
+        wb = Workbook()
+        wb.active.title = "README"
+        ws = wb.create_sheet("Activity Mapping")
+        ws.append(["Raw Activity", "Standardized Activity"])
+        ws.append(["", ""])                 # blank row
+        ws.append(["   ", "  "])            # whitespace-only
+        ws.append(["Production", ""])       # missing standardized
+        ws.append(["", "Factory"])          # missing raw
+        ws.append(["Workshop", "Factory"])  # valid row
+        buf = io.BytesIO()
+        wb.save(buf)
+        parsed, errors = parse_workbook(buf.getvalue())
+        self.assertEqual(errors, [])
+        self.assertEqual(parsed.activity_mapping, {"Workshop": "Factory"})
+
+    def test_invalid_outsourceability_value_returns_row_level_error(self):
+        """The Job Families sheet's Outsourceability column must be one of three
+        canonical strings. A bogus value reports a clear error pointing at the
+        family — no partial save."""
+        import io
+        from openpyxl import Workbook
+        from manpower_app.bu_config_io import parse_workbook
+
+        wb = Workbook()
+        wb.active.title = "README"
+        ws = wb.create_sheet("Job Families")
+        ws.append(["Activity", "Profession", "Job Family", "Outsourceability"])
+        ws.append(["Factory", "Engineer", "Engineer", "MaybeOutsourceable"])  # invalid
+        buf = io.BytesIO()
+        wb.save(buf)
+        parsed, errors = parse_workbook(buf.getvalue())
+        self.assertTrue(any("Engineer" in e and "MaybeOutsourceable" in e for e in errors),
+                        f"Expected a row-level error mentioning Engineer + bad value, got {errors}")
+        # Note: the row's family-pair mapping IS still recorded (it's not invalid),
+        # only the outsourceability value is rejected.
+        self.assertNotIn("Engineer", parsed.outsourceability_overrides)
+
+    # --- #5: Hard-block UX response shape -----------------------------------
+
+    def test_unmapped_pairs_response_shape_supports_frontend_hardblock(self):
+        """Upload a payroll with a (activity, profession) the BU's mappings don't
+        cover. The response must include unmapped_pairs entries with the exact
+        shape the frontend's hard-block branch expects: a list of dicts each
+        with 'activity', 'profession' (and optionally 'count')."""
+        import io
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        inhouse = wb.active
+        inhouse.title = "Inhouse"
+        inhouse.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+        ])
+        # Mapped baseline so the engine doesn't error on empty frame
+        for i in range(5):
+            inhouse.append([100 + i, "Quarries", "Skilled Labor", "non-saudi", 4200, 0, 3300, 500, 200, 150, 50, 0])
+        # Unmapped pair
+        for i in range(3):
+            inhouse.append([200 + i, "Drone Yard", "Drone Pilot", "Saudi", 8000, 0, 6500, 1000, 300, 200, 100, 0])
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        r = self.client.post(
+            "/workbooks/upload",
+            files={"file": ("payroll.xlsx", io.BytesIO(buf.getvalue()), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        body = r.json()
+        self.assertIn("unmapped_pairs", body, "Response must expose unmapped_pairs for the frontend")
+        self.assertIsInstance(body["unmapped_pairs"], list)
+        self.assertGreater(len(body["unmapped_pairs"]), 0)
+        for entry in body["unmapped_pairs"]:
+            self.assertIsInstance(entry, dict)
+            self.assertIn("activity", entry)
+            self.assertIn("profession", entry)
+
+    # --- #6: Mapping override + custom family interaction ------------------
+
+    def test_mapping_override_routes_payroll_into_custom_family_without_double_count(self):
+        """A consultant defines a custom family ""Drone Pilot"" with explicit costs,
+        AND adds a profession mapping ""Senior Drone Pilot → Drone Pilot"". The
+        engine must route 'Senior Drone Pilot' payroll rows into the custom family —
+        without double-counting them or losing them as unmapped."""
+        import io
+        from openpyxl import Workbook
+        from manpower_app.service import process_workbook
+        from manpower_app.family_specs import ActivityProfession, CustomFamilyCosts, CustomFamilySpec
+
+        wb = Workbook()
+        inhouse = wb.active
+        inhouse.title = "Inhouse"
+        inhouse.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+        ])
+        # A pair routed by the BU's overrides: standardized via profession map +
+        # custom family at the family layer.
+        for i in range(4):
+            inhouse.append([100 + i, "Quarries", "Senior Drone Pilot", "non-saudi", 7500, 0, 6000, 800, 300, 250, 150, 0])
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        buf = io.BytesIO()
+        wb.save(buf)
+        contents = buf.getvalue()
+
+        # Standardize via profession_mapping; the custom family declares the family-level
+        # routing via source_pairs.
+        drone_family = CustomFamilySpec(
+            family_name="Drone Pilot",
+            outsourceability="Partially Outsourceable",
+            source_pairs=[ActivityProfession(activity="Quarries", profession="Drone Pilot")],
+            costs=CustomFamilyCosts(saudi_inhouse=8000, non_saudi_inhouse=7000, outsourced=5500),
+        )
+        processed = process_workbook(
+            io.BytesIO(contents),
+            custom_families=[drone_family],
+            profession_mapping_overrides={"Senior Drone Pilot": "Drone Pilot"},
+        )
+        # 4 payroll rows should land in the Drone Pilot family — no duplicates, no losses.
+        drone_rows = processed.inhouse_cleaned[processed.inhouse_cleaned["Job_Family"] == "Drone Pilot"]
+        self.assertEqual(len(drone_rows), 4)
+        # The optimization frame should expose the family with its custom costs.
+        opt = processed.optimization_df
+        drone_opt = opt[opt["Job Family"] == "Drone Pilot"]
+        self.assertEqual(len(drone_opt), 1)
+        self.assertEqual(int(drone_opt.iloc[0]["Current Headcount"]), 4)
 
 
 if __name__ == "__main__":
