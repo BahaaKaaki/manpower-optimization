@@ -52,6 +52,13 @@ export function BUConfigurationPanel({ buCode, buName, onClose, onSaved }: Props
   useEffect(() => {
     let cancelled = false;
 
+    // Reset state synchronously when buCode changes. If a previous BU's data is
+    // sitting in state (e.g. the user opened MGIC first which gets seeded, then
+    // switched to Sphinx), wiping here guarantees an empty starting point even
+    // before the async bootstrap finishes loading the new BU's stored config.
+    setConfig(EMPTY_CONFIG);
+    setHasSavedConfig(false);
+
     async function bootstrap() {
       const stored = await persistGet<BUConfiguration | null>(configKey(buCode), null);
       if (cancelled) return;

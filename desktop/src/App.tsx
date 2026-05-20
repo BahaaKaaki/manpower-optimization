@@ -466,6 +466,9 @@ export default function App() {
         <HomePage onStart={() => setActiveStage("bu-selection")} />
       ) : stage === "bu-selection" && configuringBU ? (
         <BUConfigurationPanel
+          // Force a fresh component instance whenever the BU changes so no
+          // state from a previously-opened BU's panel can leak into this one.
+          key={configuringBU}
           buCode={configuringBU}
           buName={BUSINESS_UNITS.find((b) => b.code === configuringBU)?.name ?? configuringBU}
           onClose={() => setConfiguringBU(null)}
