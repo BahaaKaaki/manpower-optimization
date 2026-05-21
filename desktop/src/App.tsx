@@ -12,6 +12,7 @@ import {
 import { AppShell, type StageBadge } from "./features/AppShell";
 import { AssumptionsPanel } from "./features/AssumptionsPanel";
 import { BUConfigurationPanel } from "./features/BUConfigurationPanel";
+import { UserGuide } from "./features/UserGuide";
 import { BUSelectionWorkspace, BUSINESS_UNITS } from "./features/BUSelectionWorkspace";
 import { HomePage } from "./features/HomePage";
 import { ModeSelectionWorkspace } from "./features/ModeSelectionWorkspace";
@@ -115,6 +116,7 @@ export default function App() {
   const [unmappedPairs, setUnmappedPairs] = useState<UnmappedPair[]>([]);
   const [activeBU, setActiveBU] = useState<BusinessUnitCode | null>(null);
   const [configuringBU, setConfiguringBU] = useState<BusinessUnitCode | null>(null);
+  const [guideOpen, setGuideOpen] = useState<boolean>(false);
   // True once the active BU has at least one of profession/activity/job-family
   // mappings populated. When false, the Upload screen renders a hard-block
   // card instead of the drop zone. Polled when activeBU changes and after
@@ -440,6 +442,7 @@ export default function App() {
   }
 
   return (
+    <>
     <AppShell
       stage={stage}
       reachableStages={reachableStages}
@@ -450,6 +453,7 @@ export default function App() {
       canResumeResults={Boolean(restoredOptimization) && !optimization}
       onResumeResults={restorePreviousScenario}
       onDownload={optimization ? () => void downloadResults() : undefined}
+      onOpenGuide={() => setGuideOpen(true)}
       onNavigate={handleNavigate}
     >
       {error ? (
@@ -564,5 +568,7 @@ export default function App() {
 
       {apiReady && debugEnabled && stage !== "home" ? <AssumptionsPanel /> : null}
     </AppShell>
+    <UserGuide open={guideOpen} onClose={() => setGuideOpen(false)} />
+    </>
   );
 }
