@@ -115,8 +115,8 @@ export function UserGuide({ open, onClose }: Props) {
             <h3>Key terms</h3>
             <dl className="user-guide-glossary">
               <dt>Job family</dt>
-              <dd>A canonical role grouping like Engineer, Skilled Labor, or Quarries Foreman. The
-                optimizer works at this level of granularity.</dd>
+              <dd>A standard role grouping like Engineer, Skilled Labor, or Quarries Foreman. The
+                optimizer plans headcount at this level.</dd>
 
               <dt>Saudization rate</dt>
               <dd>Saudi employees as a percentage of the <strong>in-house</strong> workforce.

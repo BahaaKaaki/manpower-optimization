@@ -7414,6 +7414,10 @@ html {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  /* line-height: 1 makes the text box exactly the font-size tall so it
+     vertically centers with the SVG icon (instead of carrying ~1.2x line
+     padding that shifts the 'G' off the icon's optical center). */
+  line-height: 1;
   box-shadow:
     0 1px 2px rgba(80, 156, 53, 0.10),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -7463,9 +7467,12 @@ html {
   outline-offset: 3px;
 }
 
-/* Icon: subtle wobble on hover so the button feels alive */
+/* Icon: subtle wobble on hover so the button feels alive. display:block
+   removes the inline baseline padding that would push the icon up relative
+   to the 'G' in the text. */
 .topbar-guide-btn svg {
   flex-shrink: 0;
+  display: block;
   transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
