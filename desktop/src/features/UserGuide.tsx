@@ -101,7 +101,7 @@ export function UserGuide({ open, onClose }: Props) {
               <li>
                 <strong>Set your assumptions.</strong> Saudization rate (overall + per family),
                 risk factor, negotiated rates, workforce protection. Sensible defaults are
-                pre-set — only override what you need.
+                pre-set, only override what you need.
               </li>
               <li>
                 <strong>Run, review, export.</strong> Click "Run Optimization." The Output page
@@ -120,7 +120,7 @@ export function UserGuide({ open, onClose }: Props) {
 
               <dt>Saudization rate</dt>
               <dd>Saudi employees as a percentage of the <strong>in-house</strong> workforce.
-                Outsourced workers are excluded — this matches the Nitaqat formula.</dd>
+                Outsourced workers are excluded. This matches the Nitaqat formula.</dd>
 
               <dt>Outsourceability</dt>
               <dd>A per-family rule: <em>Fully Outsourceable</em>, <em>Partially Outsourceable</em>,
