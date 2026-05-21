@@ -1130,11 +1130,16 @@ class BUConfigurationExcelRoundTripTests(unittest.TestCase):
         self.assertNotEqual(parsed.outsourceability_overrides.get("Engineer"), "Maybe Outsourceable")
 
     def test_invalid_ratio_format_is_rejected(self):
+        """Build a populated Ratios sheet, corrupt one row, parser flags it.
+        (The skeleton starter has only example rows so we use a config with
+        ratio_overrides to get the canonical Quarries Foreman row.)"""
         import io
         import openpyxl
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
+        from manpower_app.rules import MAXIMUM_RATIO_RULES
 
-        xlsx = build_workbook("MGIC", None, BUConfigurationPayload())
+        populated = BUConfigurationPayload(ratio_overrides=dict(MAXIMUM_RATIO_RULES))
+        xlsx = build_workbook("MGIC", None, populated)
         wb = openpyxl.load_workbook(io.BytesIO(xlsx))
         ws = wb["Ratios"]
         for row in ws.iter_rows(min_row=2):
@@ -1148,14 +1153,13 @@ class BUConfigurationExcelRoundTripTests(unittest.TestCase):
 
     def test_starter_workbook_for_empty_bu_is_skeleton_with_examples_only(self):
         """Starter workbook for a fresh BU (UAAC, FAST, etc.) is a SKELETON: 7
-        sheets, all present, but the mapping sheets contain only italic example
-        rows + instructions — NOT pre-filled with MGIC's data. Ratios sheet still
-        lists the canonical supervisor families (they're universal) but with
-        blank values for the user to fill."""
+        sheets, all present, but EVERY mapping sheet contains only italic
+        (example) rows + instructions — NOT pre-filled with MGIC's data. This
+        applies uniformly to Profession Mapping, Activity Mapping, Job Families,
+        Ratios, AND Drivers."""
         import io
         import openpyxl
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook
-        from manpower_app.rules import MAXIMUM_RATIO_RULES
 
         xlsx = build_workbook("UAAC", None, BUConfigurationPayload())
         wb = openpyxl.load_workbook(io.BytesIO(xlsx))
@@ -1171,40 +1175,23 @@ class BUConfigurationExcelRoundTripTests(unittest.TestCase):
                 "Cost Assumptions",
             ],
         )
-        # Profession Mapping: only the 2 (example) rows, no real raw values
-        prof_rows = [
-            row[0] for row in wb["Profession Mapping"].iter_rows(min_row=2, values_only=True)
-            if row[0]
-        ]
-        self.assertTrue(all(str(r).startswith("(example)") for r in prof_rows), prof_rows)
-        # Activity Mapping: same — only example rows
-        act_rows = [
-            row[0] for row in wb["Activity Mapping"].iter_rows(min_row=2, values_only=True)
-            if row[0]
-        ]
-        self.assertTrue(all(str(r).startswith("(example)") for r in act_rows), act_rows)
-        # Job Families: only example rows in the main 4-column data area
-        jf_data_rows = [
-            (row[0], row[1])
-            for row in wb["Job Families"].iter_rows(min_row=2, max_col=4, values_only=True)
-            if row[0]
-        ]
-        self.assertTrue(
-            all(str(r[0]).startswith("(example)") for r in jf_data_rows), jf_data_rows
-        )
-        # Ratios sheet still lists every canonical supervisor family (those names
-        # are universal) — but their Value cells are blank for the user to fill.
-        ratio_names = {
-            row[0] for row in wb["Ratios"].iter_rows(min_row=2, values_only=True) if row[0]
-        }
-        self.assertEqual(ratio_names, set(MAXIMUM_RATIO_RULES.keys()))
-        ratio_values = [
-            row[1] for row in wb["Ratios"].iter_rows(min_row=2, values_only=True) if row[0]
-        ]
-        self.assertTrue(
-            all(v in (None, "") for v in ratio_values),
-            f"Empty BU ratios should have blank values, got: {ratio_values}",
-        )
+
+        def _all_skeleton_rows(sheet_name: str, *, col: int = 1) -> None:
+            rows = [
+                row[col - 1]
+                for row in wb[sheet_name].iter_rows(min_row=2, values_only=True)
+                if row[col - 1]
+            ]
+            self.assertTrue(
+                all(str(r).startswith("(example)") for r in rows),
+                f"{sheet_name} should contain only (example) rows, got: {rows}",
+            )
+
+        _all_skeleton_rows("Profession Mapping")
+        _all_skeleton_rows("Activity Mapping")
+        _all_skeleton_rows("Job Families")
+        _all_skeleton_rows("Ratios")
+        _all_skeleton_rows("Drivers")
 
 
 class EndToEndUserJourneyTests(unittest.TestCase):
@@ -1595,11 +1582,15 @@ class ExcelValidationEdgeCases(unittest.TestCase):
         self.assertNotIn("Engineer", parsed.outsourceability_overrides)
 
     def test_whitespace_in_ratio_is_normalized_on_parse(self):
+        """Build a populated Ratios sheet, set a value with extra whitespace,
+        parser normalizes it."""
         import io
         import openpyxl
         from manpower_app.bu_config_io import BUConfigurationPayload, build_workbook, parse_workbook
+        from manpower_app.rules import MAXIMUM_RATIO_RULES
 
-        xlsx = build_workbook("MGIC", None, BUConfigurationPayload())
+        populated = BUConfigurationPayload(ratio_overrides=dict(MAXIMUM_RATIO_RULES))
+        xlsx = build_workbook("MGIC", None, populated)
         wb = openpyxl.load_workbook(io.BytesIO(xlsx))
         ws = wb["Ratios"]
         for row in ws.iter_rows(min_row=2):
@@ -1864,6 +1855,21 @@ class TargetModeCombinedTests(unittest.TestCase):
         self.assertAlmostEqual(ratio, 1.6, places=3)
 
 
+def _mgic_bu_configuration_dict() -> dict:
+    """Build a bu_configuration JSON dict populated with MGIC's hardcoded
+    mappings. Used by HTTP tests that need to pass the empty-BU hard-block
+    check in /workbooks/upload (added in Round 4)."""
+    from manpower_app.mappings import ACTIVITY_MAPPING, JOB_FAMILY_MAPPING, PROFESSION_MAPPING
+    return {
+        "profession_mapping": dict(PROFESSION_MAPPING),
+        "activity_mapping": dict(ACTIVITY_MAPPING),
+        "job_family_mapping": dict(JOB_FAMILY_MAPPING),
+        "outsourceability_overrides": {},
+        "ratio_overrides": {},
+        "driver_overrides": {},
+    }
+
+
 class ApiSmokeTests(unittest.TestCase):
     """HTTP wire-layer smoke tests using FastAPI's TestClient — verify the
     JSON payloads and the BU Configuration upload+download cycle work end-to-end
@@ -1961,13 +1967,15 @@ class ApiSmokeTests(unittest.TestCase):
         with BU overrides + scenario knobs → result includes the BU override effect.
         """
         import io
+        import json
         contents = EndToEndUserJourneyTests._quarries_workbook_bytes()
 
-        # 1. Upload payroll workbook
+        # 1. Upload payroll workbook with a configured BU (mandatory after Round 4)
         r = self.client.post(
             "/workbooks/upload",
             files={"file": ("payroll.xlsx", io.BytesIO(contents),
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"bu_configuration": json.dumps(_mgic_bu_configuration_dict())},
         )
         self.assertEqual(r.status_code, 200, r.text)
         upload_body = r.json()
@@ -2047,8 +2055,18 @@ class BUExcelRefactorAdditionalCoverageTests(unittest.TestCase):
         import io
         import json
 
-        # Step 1: download the template
-        r = self.client.get("/bu/configuration/template?bu_code=MGIC")
+        # Step 1: download a populated BU Excel (MGIC seeded with defaults).
+        # Note: /template returns the empty skeleton (used for first-time BUs);
+        # we use /export here because round 4 hard-blocks uploads with empty
+        # BU configs, so we need a populated XLSX to round-trip.
+        r = self.client.post(
+            "/bu/configuration/export",
+            json={
+                "bu_code": "MGIC",
+                "bu_name": "MGIC",
+                "configuration": _mgic_bu_configuration_dict(),
+            },
+        )
         self.assertEqual(r.status_code, 200)
         xlsx_bytes = r.content
 
@@ -2093,17 +2111,9 @@ class BUExcelRefactorAdditionalCoverageTests(unittest.TestCase):
 
         payroll = EndToEndUserJourneyTests._quarries_workbook_bytes()
 
-        # Build MGIC's bu_configuration with one custom outsourceability override
-        # so we can detect leakage: if the second upload still has this override,
-        # state leaked. (Outsourceability is in optimization_df.)
-        mgic_config = {
-            "profession_mapping": {},  # use defaults
-            "activity_mapping": {},
-            "job_family_mapping": {},
-            "outsourceability_overrides": {},
-            "ratio_overrides": {},
-            "driver_overrides": {},
-        }
+        # Build MGIC's bu_configuration with populated mappings (required by
+        # the Round-4 hard-block in /workbooks/upload).
+        mgic_config = _mgic_bu_configuration_dict()
 
         # Upload #1 — MGIC
         r = self.client.post(
@@ -2254,6 +2264,7 @@ class BUExcelRefactorAdditionalCoverageTests(unittest.TestCase):
         shape the frontend's hard-block branch expects: a list of dicts each
         with 'activity', 'profession' (and optionally 'count')."""
         import io
+        import json
         from openpyxl import Workbook
 
         wb = Workbook()
@@ -2282,6 +2293,7 @@ class BUExcelRefactorAdditionalCoverageTests(unittest.TestCase):
         r = self.client.post(
             "/workbooks/upload",
             files={"file": ("payroll.xlsx", io.BytesIO(buf.getvalue()), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"bu_configuration": json.dumps(_mgic_bu_configuration_dict())},
         )
         self.assertEqual(r.status_code, 200, r.text)
         body = r.json()
@@ -2292,6 +2304,47 @@ class BUExcelRefactorAdditionalCoverageTests(unittest.TestCase):
             self.assertIsInstance(entry, dict)
             self.assertIn("activity", entry)
             self.assertIn("profession", entry)
+
+    # --- Round-4: hard-block payroll upload for unconfigured BUs -----------
+
+    def test_upload_blocked_when_bu_has_no_mappings(self):
+        """When the active BU has no profession/activity/job-family mappings
+        configured, /workbooks/upload returns 400 (instead of silently using
+        MGIC's hardcoded defaults). The consultant must configure the BU first."""
+        import io
+        import json
+        contents = EndToEndUserJourneyTests._quarries_workbook_bytes()
+
+        # Empty config — what a fresh UAAC / FAST consultant's local state looks like.
+        empty_config = {
+            "profession_mapping": {},
+            "activity_mapping": {},
+            "job_family_mapping": {},
+            "outsourceability_overrides": {},
+            "ratio_overrides": {},
+            "driver_overrides": {},
+        }
+        r = self.client.post(
+            "/workbooks/upload",
+            files={"file": ("payroll.xlsx", io.BytesIO(contents),
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"bu_configuration": json.dumps(empty_config)},
+        )
+        self.assertEqual(r.status_code, 400, r.text)
+        detail = r.json().get("detail", "")
+        self.assertIn("no profession", detail.lower(), f"Got unexpected detail: {detail}")
+
+    def test_upload_also_blocked_when_no_bu_configuration_sent(self):
+        """The defense-in-depth path: no bu_configuration form field at all
+        (e.g. a malformed UI request) also gets blocked with the same 400."""
+        import io
+        contents = EndToEndUserJourneyTests._quarries_workbook_bytes()
+        r = self.client.post(
+            "/workbooks/upload",
+            files={"file": ("payroll.xlsx", io.BytesIO(contents),
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        )
+        self.assertEqual(r.status_code, 400, r.text)
 
     # --- #6: Mapping override + custom family interaction ------------------
 

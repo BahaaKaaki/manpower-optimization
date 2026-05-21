@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { DataTable, type ColumnDef } from "../components/DataTable";
 import { DonutChart } from "../components/DonutChart";
 import type { DetailTab, OptimizationResponse } from "../types";
-import { SaudizationHero } from "./SaudizationHero";
 import {
   formatCompactCurrency,
   formatCurrency,
@@ -14,12 +13,51 @@ import {
   safeSavingsPercent,
   toNumber,
 } from "../utils/format";
+import { useCountUp } from "../utils/useCountUp";
 
 const saudiFlagUrl = new URL("../assets/sa-flag.png", import.meta.url).href;
 
 function SaudiFlag() {
   return (
     <img src={saudiFlagUrl} width="24" height="16" alt="Saudi Arabia" className="saudi-flag" />
+  );
+}
+
+/**
+ * Small Saudization caption rendered directly under each donut chart on the
+ * Output summary card. Replaces the standalone SaudizationHero panel — the
+ * caption fits inside the existing breakdown column and shares vertical
+ * rhythm with the donut, so the page reads as one continuous summary.
+ *
+ *   [ Donut ]
+ *   🇸🇦  23.4%
+ *        Current Saudization
+ *
+ * Rate uses the in-house workforce as the denominator (matches the Nitaqat
+ * formula and the bug fix from commit 5b03edc — outsourced workers excluded).
+ */
+function SaudizationCaption({
+  variant,
+  saudiCount,
+  totalCount,
+}: {
+  variant: "current" | "optimized";
+  saudiCount: number;
+  totalCount: number;
+}) {
+  const safeTotal = Math.max(totalCount, 1);
+  const pct = Math.max(0, Math.min(1, saudiCount / safeTotal)) * 100;
+  const animated = useCountUp(pct, 600);
+  return (
+    <div className={`saudization-caption saudization-caption--${variant}`}>
+      <img src={saudiFlagUrl} alt="" aria-hidden className="saudization-caption-flag" />
+      <div className="saudization-caption-text">
+        <span className="saudization-caption-value">{animated.toFixed(1)}%</span>
+        <span className="saudization-caption-label">
+          {variant === "current" ? "Current Saudization" : "Optimized Saudization"}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -568,13 +606,6 @@ export function ResultsDashboard({
         {/* Saudization rate uses the IN-HOUSE workforce as the denominator
             (matches Nitaqat convention + the backend's saudization_achieved).
             Outsourced workers are excluded — they don't count toward the rate. */}
-        <SaudizationHero
-          currentSaudi={currentSaudi}
-          currentTotal={currentSaudi + currentNonSaudi}
-          optimizedSaudi={totalSaudi}
-          optimizedTotal={totalSaudi + totalNonSaudi}
-        />
-
         <div className="output-breakdown-grid">
           <div className="output-breakdown-col">
             <DonutChart
@@ -584,6 +615,11 @@ export function ResultsDashboard({
               centerLabel="Total"
               items={currentHeadcountChartItems}
               tooltipValueFormatter={(value) => formatNumber(value, 0)}
+            />
+            <SaudizationCaption
+              variant="current"
+              saudiCount={currentSaudi}
+              totalCount={currentSaudi + currentNonSaudi}
             />
           </div>
           <div className="output-breakdown-divider" aria-hidden>
@@ -597,6 +633,11 @@ export function ResultsDashboard({
               centerLabel="Total"
               items={optimizedHeadcountChartItems}
               tooltipValueFormatter={(value) => formatNumber(value, 0)}
+            />
+            <SaudizationCaption
+              variant="optimized"
+              saudiCount={totalSaudi}
+              totalCount={totalSaudi + totalNonSaudi}
             />
           </div>
         </div>

@@ -2114,8 +2114,9 @@ button, input, select {
   position: relative;
   overflow: hidden;
   /* Tight padding so the full summary (head + KPIs + Saudization + donuts)
-     fits on a 1366×768 laptop without scroll. */
-  padding: 18px 22px;
+     fits on a 1366×768 laptop without scroll. Bottom is tighter than top
+     so the Saudization captions don't sit in a sea of empty dark space. */
+  padding: 18px 22px 10px 22px;
   border: 1px solid rgba(127, 204, 94, 0.24);
   border-radius: var(--radius-xl);
   background:
@@ -2126,14 +2127,16 @@ button, input, select {
   box-shadow: 0 18px 48px rgba(7, 10, 13, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* Decorative diagonal-stripe overlay at the bottom of the card. Shrunk so it
+   doesn't paint over the Saudization captions any more. */
 .output-summary-card::after {
   content: "";
   position: absolute;
-  inset: auto -5% -18% -5%;
-  height: 30%;
+  inset: auto -5% -8% -5%;
+  height: 18%;
   background: repeating-linear-gradient(95deg, rgba(80, 156, 53, 0.16) 0 1px, transparent 1px 20px);
   transform: perspective(580px) rotateX(64deg);
-  opacity: 0.55;
+  opacity: 0.40;
   pointer-events: none;
 }
 
@@ -2341,13 +2344,19 @@ button, input, select {
   color: var(--accent-400, var(--accent-500));
 }
 
+/* Inside the dark output-summary-card we drop the donut-card chrome entirely:
+   no min-height (was pushing the donut-card taller than content and clipping the
+   Saudization caption below it), no border, no card background, tighter padding.
+   The donut + legend sit floating directly on the dark backdrop. */
 .output-breakdown-grid .donut-card {
-  min-height: 100%;
   margin: 0;
-  border-color: rgba(127, 204, 94, 0.18);
-  background: rgba(255, 255, 255, 0.045);
+  padding: 8px 0 0 0;
+  border: none;
+  background: transparent;
   box-shadow: none;
   color: #f6faf3;
+  min-height: 0;
+  gap: 12px;
 }
 
 .output-breakdown-grid .donut-card:hover {
@@ -7060,196 +7069,79 @@ html {
    this strip just adds the rate-level numbers and Saudi headcount delta
    in one elegant row of typography. Height ~36px.
    Replaces the earlier ring-gauge hero / journey-band hero. */
-.saudization-showcase {
+/* ── Saudization Caption (Round-4) ────────────────────────────────────
+   Small caption rendered directly under each donut on the Output summary
+   card. Replaces the standalone SaudizationHero panel — sits inside the
+   existing breakdown column so the page reads as one continuous summary.
+       🇸🇦   23.4%
+            Current Saudization
+   Rate uses the in-house workforce as the denominator (Nitaqat formula,
+   matches the bug fix from commit 5b03edc — outsourced excluded).      */
+.saudization-caption {
+  /* z-index/position needed because .output-summary-card::after is a decorative
+     striped pseudo-element drawn over the bottom 30% of the card and would
+     otherwise overlay this caption (which sits at the bottom of the breakdown col). */
   position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 18px;
+  z-index: 2;
+  display: flex;
   align-items: center;
+  gap: 14px;
   padding: 14px 18px;
-  margin: 0 0 14px 0;
+  margin-top: 10px;
   background:
-    linear-gradient(135deg, rgba(127, 204, 94, 0.10) 0%, rgba(56, 117, 35, 0.18) 100%);
-  border: 1px solid rgba(127, 204, 94, 0.30);
-  border-left: 4px solid var(--accent-500);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  animation: saudization-hero-enter 460ms cubic-bezier(0.32, 0.72, 0, 1) both;
-}
-
-.saudization-showcase-flag {
-  flex-shrink: 0;
-  width: 84px;
-  height: 56px;
-  border-radius: 4px;
-  overflow: hidden;
+    linear-gradient(135deg, rgba(127, 204, 94, 0.22) 0%, rgba(56, 117, 35, 0.30) 100%);
+  border: 1.5px solid rgba(127, 204, 94, 0.55);
+  border-radius: var(--radius-md);
   box-shadow:
-    0 6px 14px rgba(0, 0, 0, 0.28),
-    0 1px 3px rgba(0, 0, 0, 0.18),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  background: var(--accent-700);
+    0 4px 12px rgba(80, 156, 53, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  animation: saudization-caption-enter 420ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
-.saudization-showcase-flag img {
-  width: 100%;
-  height: 100%;
+@keyframes saudization-caption-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saudization-caption { animation: none; }
+}
+
+.saudization-caption-flag {
+  width: 44px;
+  height: 30px;
   object-fit: cover;
-  display: block;
+  border-radius: 4px;
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
 }
 
-.saudization-showcase-body {
-  min-width: 0;
+.saudization-caption-text {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 1px;
+  min-width: 0;
 }
 
-/* Top row: eyebrow on the left, info help on the right */
-.saudization-showcase-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.saudization-showcase-eyebrow {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent-300, #b1de9a);
-}
-
-.saudization-showcase-help {
-  font-size: 13px;
-  color: rgba(246, 250, 243, 0.42);
-  cursor: help;
-  transition: color var(--transition-fast);
-  user-select: none;
-}
-
-.saudization-showcase-help:hover { color: rgba(246, 250, 243, 0.92); }
-
-/* Headline row: hero rate + delta pill */
-.saudization-showcase-headline {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.saudization-showcase-value {
+.saudization-caption-value {
   font-family: var(--font-display, inherit);
-  font-size: 40px;
+  font-size: 28px;
   font-weight: 800;
   line-height: 1;
   color: #ffffff;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
-.saudization-showcase-delta {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 11px;
-  border-radius: var(--radius-full);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  background: rgba(127, 204, 94, 0.24);
-  color: #d5edc4;
-  white-space: nowrap;
-}
-
-.saudization-showcase-delta--down {
-  background: rgba(232, 152, 48, 0.24);
-  color: #f6d6a3;
-}
-
-.saudization-showcase-delta--flat {
-  background: rgba(255, 255, 255, 0.10);
-  color: rgba(246, 250, 243, 0.72);
-}
-
-/* Mini-stat grid — labeled columns with vertical dividers replace the
-   dot-separated sub-line. Much more scannable. */
-.saudization-showcase-stats {
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  gap: 18px;
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.10);
-}
-
-.saudization-showcase-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-right: 18px;
-  border-right: 1px solid rgba(255, 255, 255, 0.10);
-}
-
-.saudization-showcase-stat:last-child {
-  padding-right: 0;
-  border-right: none;
-}
-
-.saudization-showcase-stat-label {
-  font-size: 9px;
-  font-weight: 700;
+.saudization-caption-label {
+  font-size: 10px;
+  font-weight: 800;
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: rgba(246, 250, 243, 0.48);
-}
-
-.saudization-showcase-stat-value {
-  font-size: 14px;
-  font-weight: 700;
-  color: #ffffff;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.25;
-  white-space: nowrap;
-}
-
-.saudization-showcase-stat-arrow {
-  color: var(--accent-400, var(--accent-500));
-  opacity: 0.65;
-  font-weight: 500;
-}
-
-@media (max-width: 720px) {
-  .saudization-showcase { padding: 12px 14px; gap: 14px; }
-  .saudization-showcase-flag { width: 64px; height: 44px; }
-  .saudization-showcase-value { font-size: 30px; }
-  .saudization-showcase-help { display: none; }
-  .saudization-showcase-stats {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-  .saudization-showcase-stat {
-    flex-direction: row;
-    align-items: baseline;
-    gap: 8px;
-    padding-right: 0;
-    border-right: none;
-  }
-  .saudization-showcase-stat-value { white-space: normal; }
-}
-
-/* Legacy strip class kept as no-op stub (no consumers) */
-.saudization-strip {
-  display: none;
-}
-
-@keyframes saudization-hero-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .saudization-hero { animation: none; }
+  color: #c9ebb6;
 }
 
 

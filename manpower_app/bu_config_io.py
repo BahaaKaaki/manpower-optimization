@@ -377,24 +377,31 @@ def _build_ratios_sheet(ws, config: BUConfigurationPayload):
     ws.append(["Supervisor Family", "Value (e.g. 1:10)"])
     _style_header_row(ws)
 
-    # Ratios sheet always lists the canonical supervisor families (their names are
-    # universal — they're the same engine-recognized supervisor types for every BU).
-    # For a skeleton: blank Value cells so the user fills their own. For a filled
-    # config: show the saved values.
-    for family in sorted(MAXIMUM_RATIO_RULES.keys()):
-        saved = config.ratio_overrides.get(family)
-        ws.append([family, saved if saved else ""])
+    if config.ratio_overrides:
+        # Filled config: show every canonical supervisor with the user's saved value
+        # (blank → uses the tool's default at engine time).
+        for family in sorted(MAXIMUM_RATIO_RULES.keys()):
+            saved = config.ratio_overrides.get(family)
+            ws.append([family, saved if saved else ""])
+    else:
+        # Empty config (e.g. UAAC, FAST). Skeleton with 2 example rows — matches
+        # the Profession Mapping / Activity Mapping sheets so the consultant always
+        # sees the same skeleton pattern across mapping sheets.
+        _append_example_row(ws, "(example) Quarries Foreman", "1:15")
+        _append_example_row(ws, "(example) Factory Supervisor", "1:20")
 
     ws.column_dimensions["A"].width = 28
     ws.column_dimensions["B"].width = 22
     ws["D1"] = (
-        "Set the maximum supervisor:worker ratio for each supervisor family. "
-        "Format: 1:N (e.g. 1:10 means one supervisor for every 10 workers). "
-        "Blank means the tool's default applies."
+        "Fill this with your BU's data:\n"
+        "1) For each supervisor family in your BU, set the max supervisor:worker "
+        "ratio in the format 1:N (e.g. 1:10 = one supervisor for every 10 workers).\n"
+        "2) Replace the (example) rows and add one row per supervisor.\n"
+        "Blank entries fall back to the tool's defaults."
     )
     ws["D1"].alignment = Alignment(wrap_text=True, vertical="top")
     ws["D1"].font = _INSTRUCTION_FONT
-    ws.merge_cells("D1:E5")
+    ws.merge_cells("D1:E8")
     ws.column_dimensions["D"].width = 48
     ws.column_dimensions["E"].width = 20
 
@@ -402,6 +409,7 @@ def _build_ratios_sheet(ws, config: BUConfigurationPayload):
 def _build_drivers_sheet(ws, config: BUConfigurationPayload):
     ws.append(["Supervisor Family", "Activity", "Profession"])
     _style_header_row(ws)
+
     if config.driver_overrides:
         for family in sorted(config.driver_overrides.keys()):
             for entry in config.driver_overrides[family]:
@@ -411,16 +419,27 @@ def _build_drivers_sheet(ws, config: BUConfigurationPayload):
                     entry.get("profession", ""),
                 ])
     else:
-        # Starter: list supervisor names with blank Activity/Profession rows; user adds
-        # one row per (activity, profession) pair counted toward that supervisor.
-        for family in DRIVER_SUPERVISORS:
-            ws.append([family, "", ""])
+        # Empty config: skeleton with 2 example rows showing how driver entries
+        # tie a supervisor family to an (Activity, Profession) pair.
+        _append_example_row(ws, "(example) Quarries Foreman", "Quarries", "Welder")
+        _append_example_row(ws, "(example) Factory Supervisor", "Factory", "Operator")
+
     ws.column_dimensions["A"].width = 28
     ws.column_dimensions["B"].width = 22
     ws.column_dimensions["C"].width = 22
-    ws["E1"] = "Add one row per Activity + Profession pair you want counted toward each supervisor's driver value"
+    ws["E1"] = (
+        "Fill this with your BU's data:\n"
+        "1) For each supervisor family, list which (Activity, Profession) pairs from "
+        "your payroll count toward that supervisor's headcount.\n"
+        "2) Add one row per pair; the same supervisor can repeat across multiple rows.\n"
+        "3) Replace the (example) rows with your own.\n"
+        "Blank entries fall back to the tool's defaults."
+    )
+    ws["E1"].alignment = Alignment(wrap_text=True, vertical="top")
     ws["E1"].font = _INSTRUCTION_FONT
-    ws.column_dimensions["E"].width = 80
+    ws.merge_cells("E1:F8")
+    ws.column_dimensions["E"].width = 48
+    ws.column_dimensions["F"].width = 20
 
 
 def _build_cost_assumptions_sheet(ws, config: BUConfigurationPayload):
@@ -537,7 +556,7 @@ def _parse_ratios(ws, config: BUConfigurationPayload, errors: list[str]):
     for row in ws.iter_rows(min_row=2, values_only=True):
         family = _cell_text(row[0] if len(row) > 0 else "")
         value = _cell_text(row[1] if len(row) > 1 else "")
-        if not family or not value:
+        if not family or not value or _is_example_value(family):
             continue
         if family not in MAXIMUM_RATIO_RULES:
             errors.append(f"Ratios: unknown supervisor family '{family}' (typo?)")
@@ -556,7 +575,7 @@ def _parse_drivers(ws, config: BUConfigurationPayload, errors: list[str]):
         family = _cell_text(row[0] if len(row) > 0 else "")
         activity = _cell_text(row[1] if len(row) > 1 else "")
         profession = _cell_text(row[2] if len(row) > 2 else "")
-        if not family:
+        if not family or _is_example_value(family):
             continue
         if family not in valid_supervisors:
             errors.append(f"Drivers: unknown supervisor family '{family}' (typo?)")
