@@ -940,11 +940,12 @@ def run_optimization(processed: ProcessedWorkbook, settings: OptimizationSetting
     )
     audit_df = build_optimization_audit(data, metadata, settings)
     summary_data = build_summary_data(optimized_results, metadata, settings)
+    # Client-facing export: just the Optimization Results + Summary sheets.
+    # The Model Processing and Optimization Audit sheets are debug artifacts
+    # the consultant doesn't need to hand off — kept out of the exported XLSX.
     export_bytes = build_results_workbook(
         optimized_results["results_df"],
         summary_data,
-        processing_debug_df=data,
-        audit_df=audit_df,
     )
     return {
         "data": data,

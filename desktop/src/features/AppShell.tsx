@@ -106,9 +106,25 @@ type AppShellProps = {
   canResumeResults: boolean;
   onResumeResults: () => void;
   onDownload?: () => void;
+  onOpenGuide?: () => void;
   onNavigate?: (stage: AppStage) => void;
   children: React.ReactNode;
 };
+
+function GuideIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4" />
+      <path
+        d="M6.2 6c.2-1 1-1.7 2-1.7 1.1 0 2 .8 2 1.9 0 .8-.5 1.3-1.3 1.6-.5.2-.9.5-.9 1.1V9.2M8 11.4h.01"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export function AppShell({
   stage,
@@ -120,6 +136,7 @@ export function AppShell({
   canResumeResults,
   onResumeResults,
   onDownload,
+  onOpenGuide,
   onNavigate,
   children,
 }: AppShellProps) {
@@ -216,6 +233,18 @@ export function AppShell({
                   <span className="topbar-export-btn-title">Export Results</span>
                   <span className="topbar-export-btn-sub">XLSX · ready to download</span>
                 </span>
+              </button>
+            )}
+            {onOpenGuide && (
+              <button
+                type="button"
+                className="topbar-guide-btn"
+                onClick={onOpenGuide}
+                aria-label="Open user guide"
+                title="How to use this tool"
+              >
+                <GuideIcon />
+                <span>Guide</span>
               </button>
             )}
           </div>
