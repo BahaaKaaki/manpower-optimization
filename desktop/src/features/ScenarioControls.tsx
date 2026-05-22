@@ -383,6 +383,15 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                     value={settings.management_saudization_rate}
                     onChange={(value) => onUpdate("management_saudization_rate", value)}
                   />
+                  <NumberField
+                    label="Executive Management"
+                    min={0}
+                    max={1}
+                    value={settings.executive_management_saudization_rate}
+                    onChange={(value) =>
+                      onUpdate("executive_management_saudization_rate", value)
+                    }
+                  />
                 </FieldStack>
               </div>
             </div>

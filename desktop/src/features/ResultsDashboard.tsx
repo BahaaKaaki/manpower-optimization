@@ -316,8 +316,9 @@ function FamilyMixBar({
   total: number;
 }) {
   const denominator = Math.max(total, saudi + nonSaudi + outsourced, 1);
-  // Numbers live INSIDE wide segments (no IS/IN/O codes — they read as "60" when
-  // squished). Labels live in the chip row below the bar.
+  // Every non-zero segment shows its number inside the bar (per consultant
+  // feedback — narrow segments were missing numbers before). The chip row
+  // below carries the long label so we don't need codes (IS/IN/O) inside.
   const segments = [
     { key: "saudi", longLabel: "Saudi", longLabelPlural: "Saudis", value: saudi },
     { key: "non-saudi", longLabel: "Non-Saudi", longLabelPlural: "Non-Saudis", value: nonSaudi },
@@ -332,16 +333,15 @@ function FamilyMixBar({
           {segments.map((segment) => {
             const pct = segment.value > 0 ? (segment.value / denominator) * 100 : 0;
             const value = formatNumber(segment.value, 0);
-            const showNumber = pct >= 12;
 
             return (
               <i
                 key={segment.key}
                 className={`family-mix-bar-segment family-mix-bar-segment--${segment.key}`}
                 title={`${label} ${segment.longLabelPlural}: ${value}`}
-                style={{ width: `${segment.value > 0 ? Math.max(2, pct) : 0}%` }}
+                style={{ width: `${segment.value > 0 ? Math.max(4, pct) : 0}%` }}
               >
-                {segment.value > 0 && showNumber ? <span>{value}</span> : null}
+                {segment.value > 0 ? <span>{value}</span> : null}
               </i>
             );
           })}
@@ -459,6 +459,15 @@ function FamilyRecommendations({
           </article>
         );
       })}
+      {/* Color legend strip beneath the family list. Each family card already carries
+          dot-prefixed chip labels, but the consultant asked for a permanent legend
+          under the whole section so the eye has a single reference. */}
+      <div className="family-mix-legend-strip" role="note">
+        <span className="family-mix-legend-strip-label">Legend:</span>
+        <span className="family-mix-chip family-mix-chip--saudi"><strong>Saudis</strong></span>
+        <span className="family-mix-chip family-mix-chip--non-saudi"><strong>Non-Saudis</strong></span>
+        <span className="family-mix-chip family-mix-chip--outsourced"><strong>Outsourced</strong></span>
+      </div>
     </div>
   );
 }

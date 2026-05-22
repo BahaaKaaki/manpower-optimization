@@ -106,6 +106,34 @@ def cap_outsourced_at_inhouse(outsourced_unit_cost, inhouse_non_saudi_unit_cost)
     return min(outsourced, inhouse)
 
 
+def bump_inhouse_non_saudi_above_outsourced(
+    inhouse_non_saudi_unit_cost,
+    outsourced_unit_cost,
+    outsourceability_type,
+    *,
+    epsilon: float = 1.0,
+):
+    """Symmetric counterpart to ``cap_outsourced_at_inhouse``.
+
+    Consultant feedback from Scenario 1: when in-house non-Saudi cost is naturally
+    LESS than outsourced cost in the data (or equal after the existing cap), the LP
+    keeps everyone in-house on pure cost grounds — ignoring the outsourceability
+    rule. Force a strict cost preference for outsourcing by bumping in-house
+    non-Saudi unit cost slightly above outsourced for any family that is at least
+    Partially Outsourceable. Saudi in-house cost is intentionally left untouched so
+    Saudization compliance still works.
+    """
+    if outsourceability_type not in {"Fully Outsourceable", "Partially Outsourceable"}:
+        return inhouse_non_saudi_unit_cost
+    inhouse = safe_numeric(inhouse_non_saudi_unit_cost)
+    outsourced = safe_numeric(outsourced_unit_cost)
+    if inhouse <= 0 or outsourced <= 0:
+        return inhouse_non_saudi_unit_cost
+    if inhouse <= outsourced:
+        return outsourced + epsilon
+    return inhouse
+
+
 def calculate_inhouse_cost_split(average_cost, saudi_count, non_saudi_count, saudi_premium=DEFAULT_SAUDI_COST_PREMIUM):
     """Split a blended in-house average cost into per-Saudi and per-non-Saudi costs.
 

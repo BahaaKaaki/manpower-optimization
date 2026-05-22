@@ -52,6 +52,7 @@ export type Settings = {
   engineer_saudization_rate: number;
   sales_saudization_rate: number;
   management_saudization_rate: number;
+  executive_management_saudization_rate: number;
   saudi_cost_premium: number;
   outsource_cost_discount: number | null;
   max_ratio_overrides: Record<string, string>;
