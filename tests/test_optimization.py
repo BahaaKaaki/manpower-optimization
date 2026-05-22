@@ -2697,5 +2697,197 @@ class ConsultantFeedbackRoundTests(unittest.TestCase):
         self.assertLessEqual(int(solved.iloc[0][IN_HOUSE_SAUDI_COLUMN]), 2)
 
 
+class HighPerformerProtectionTests(unittest.TestCase):
+    """Phase 3: Manpower Performance column + good-performer protection.
+
+    The payroll workbook can carry an optional 'Manpower Performance' column on
+    the In-house sheet (1–5 per employee). When the user enables 'Protect high
+    performers' with threshold T, the LP must keep at least the count of
+    high-performer Saudis as Saudi in-house and the count of high-performer
+    Non-Saudis as Non-Saudi in-house. Current mode only — target mode ignores.
+    """
+
+    @staticmethod
+    def _payroll_with_perf_scores(
+        family_rows: list[tuple[str, str, str, int]],
+    ) -> bytes:
+        """Build a payroll workbook with Manpower Performance column.
+
+        family_rows: list of (location, profession, nationality, performance_score) tuples.
+        """
+        import io
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        inhouse = wb.active
+        inhouse.title = "Inhouse"
+        inhouse.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+            "Manpower Performance",
+        ])
+        for idx, (location, profession, nationality, score) in enumerate(family_rows):
+            inhouse.append([
+                100 + idx, location, profession, nationality,
+                5000, 0, 4000, 500, 200, 200, 100, 0,
+                score,
+            ])
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        # Add one outsourced row in each family that has inhouse rows so the
+        # optimization frame includes outsourced cost data.
+        seen = set()
+        for location, profession, _, _ in family_rows:
+            key = (location, profession)
+            if key in seen:
+                continue
+            seen.add(key)
+            sub.append([200 + len(seen), location, profession, "non-saudi",
+                        1500, 100, 50, 30, 0, 0, 0, 0, 80])
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    def test_manpower_performance_column_is_read_into_inhouse_cleaned(self):
+        import io
+        from manpower_app.service import process_workbook
+        contents = self._payroll_with_perf_scores([
+            ("Quarries", "Skilled Labor", "non-saudi", 4),
+            ("Quarries", "Skilled Labor", "non-saudi", 2),
+            ("Quarries", "Skilled Labor", "Saudi", 5),
+        ])
+        processed = process_workbook(io.BytesIO(contents))
+        self.assertIn("Manpower Performance", processed.inhouse_cleaned.columns)
+        scores = sorted(processed.inhouse_cleaned["Manpower Performance"].tolist())
+        self.assertEqual(scores, [2.0, 4.0, 5.0])
+
+    def test_missing_manpower_performance_column_defaults_to_three(self):
+        """Workbooks WITHOUT the column still parse — every row defaults to 3.
+        With threshold > 3, no protection applies (high-performer count = 0)."""
+        import io
+        from manpower_app.service import process_workbook
+        # Build a payroll WITHOUT the performance column.
+        from openpyxl import Workbook
+        wb = Workbook()
+        inhouse = wb.active
+        inhouse.title = "Inhouse"
+        inhouse.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+        ])
+        for i in range(3):
+            inhouse.append([100 + i, "Quarries", "Skilled Labor", "non-saudi",
+                            5000, 0, 4000, 500, 200, 200, 100, 0])
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        buf = io.BytesIO()
+        wb.save(buf)
+        processed = process_workbook(io.BytesIO(buf.getvalue()))
+        self.assertIn("Manpower Performance", processed.inhouse_cleaned.columns)
+        # All three default to 3.
+        self.assertTrue((processed.inhouse_cleaned["Manpower Performance"] == 3.0).all())
+
+    def test_high_performer_protection_keeps_them_inhouse(self):
+        """Three Skilled Labor employees, 2 with score >= 4. Protection on
+        keeps at least 2 in-house non-Saudi (the high performers) — LP cannot
+        outsource them."""
+        import io
+        from manpower_app.optimization import (
+            IN_HOUSE_NON_SAUDI_COLUMN,
+            OUTSOURCED_COLUMN,
+        )
+        from manpower_app.service import OptimizationSettings, process_workbook, run_optimization
+
+        contents = self._payroll_with_perf_scores([
+            ("Quarries", "Skilled Labor", "non-saudi", 5),
+            ("Quarries", "Skilled Labor", "non-saudi", 4),
+            ("Quarries", "Skilled Labor", "non-saudi", 2),
+        ])
+        processed = process_workbook(io.BytesIO(contents))
+
+        # Without protection: LP can outsource anyone.
+        baseline = run_optimization(
+            processed,
+            OptimizationSettings(can_reduce_current_saudi=True),
+        )
+        baseline_row = baseline["data"][baseline["data"]["Job Family"] == "Skilled Labor"].iloc[0]
+        baseline_inhouse_ns = int(baseline_row[IN_HOUSE_NON_SAUDI_COLUMN])
+
+        # With protection: the 2 high performers must stay in-house non-Saudi.
+        protected = run_optimization(
+            processed,
+            OptimizationSettings(
+                can_reduce_current_saudi=True,
+                protect_high_performers=True,
+                high_performer_threshold=4.0,
+            ),
+        )
+        protected_row = protected["data"][protected["data"]["Job Family"] == "Skilled Labor"].iloc[0]
+        protected_inhouse_ns = int(protected_row[IN_HOUSE_NON_SAUDI_COLUMN])
+        self.assertGreaterEqual(
+            protected_inhouse_ns, 2,
+            f"At least 2 high-performer non-Saudis must remain in-house, got {protected_inhouse_ns}",
+        )
+        # Protection should not drop in-house count vs baseline (only constrain it up).
+        self.assertGreaterEqual(protected_inhouse_ns, min(baseline_inhouse_ns, 2))
+
+    def test_high_performer_protection_ignored_in_target_mode(self):
+        """Phase 3 is Current mode only. Target mode must not apply the floor."""
+        import io
+        from manpower_app.service import OptimizationSettings, process_workbook, run_optimization
+
+        contents = self._payroll_with_perf_scores([
+            ("Quarries", "Skilled Labor", "non-saudi", 5),
+            ("Quarries", "Skilled Labor", "non-saudi", 5),
+            ("Quarries", "Skilled Labor", "non-saudi", 1),
+        ])
+        processed = process_workbook(io.BytesIO(contents))
+        result = run_optimization(
+            processed,
+            OptimizationSettings(
+                optimization_mode="target",
+                target_headcounts={"Skilled Labor": 3},
+                can_reduce_current_saudi=True,
+                protect_high_performers=True,
+                high_performer_threshold=4.0,
+            ),
+        )
+        # Floor columns should remain 0 in target mode (verified via the data frame).
+        sl_row = result["data"][result["data"]["Job Family"] == "Skilled Labor"].iloc[0]
+        self.assertEqual(int(sl_row.get("High Performer Saudi Floor", 0)), 0)
+        self.assertEqual(int(sl_row.get("High Performer Non-Saudi Floor", 0)), 0)
+
+    def test_threshold_above_max_score_protects_nobody(self):
+        """Threshold = 5 with all scores < 5 → 0 high performers → no floor."""
+        import io
+        from manpower_app.service import OptimizationSettings, process_workbook, run_optimization
+
+        contents = self._payroll_with_perf_scores([
+            ("Quarries", "Skilled Labor", "non-saudi", 4),
+            ("Quarries", "Skilled Labor", "non-saudi", 3),
+        ])
+        processed = process_workbook(io.BytesIO(contents))
+        result = run_optimization(
+            processed,
+            OptimizationSettings(
+                can_reduce_current_saudi=True,
+                protect_high_performers=True,
+                high_performer_threshold=5.0,  # nobody qualifies
+            ),
+        )
+        sl_row = result["data"][result["data"]["Job Family"] == "Skilled Labor"].iloc[0]
+        self.assertEqual(int(sl_row["High Performer Non-Saudi Floor"]), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

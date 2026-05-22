@@ -81,6 +81,8 @@ const defaultSettings: Settings = {
   sales_saudization_rate: 0.6,
   management_saudization_rate: 0.35,
   executive_management_saudization_rate: 0.35,
+  protect_high_performers: false,
+  high_performer_threshold: 4.0,
   saudi_cost_premium: 1.1,
   outsource_cost_discount: null,
   max_ratio_overrides: {},

@@ -492,6 +492,21 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                   suffix="years"
                   onChange={(value) => onUpdate("tenure_threshold_years", value)}
                 />
+                <ToggleField
+                  label="Protect high performers"
+                  checked={settings.protect_high_performers}
+                  onChange={(value) => onUpdate("protect_high_performers", value)}
+                />
+                <NumberField
+                  label="High-performer threshold"
+                  min={1}
+                  max={5}
+                  step={1}
+                  value={settings.high_performer_threshold}
+                  disabled={!settings.protect_high_performers}
+                  suffix="and above"
+                  onChange={(value) => onUpdate("high_performer_threshold", value)}
+                />
               </FieldStack>
             </AccordionSection>
           ) : null}
