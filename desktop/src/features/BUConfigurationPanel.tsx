@@ -659,7 +659,7 @@ export function BUConfigurationPanel({ buCode, buName, onClose, onSaved }: Props
                   <td className="bu-config-active">
                     {config.outsource_cost_discount != null
                       ? `${(config.outsource_cost_discount * 100).toFixed(0)}% cheaper than non-Saudi in-house`
-                      : "Not set (uses workbook value)"}
+                      : "Not set"}
                   </td>
                 </tr>
               </tbody>

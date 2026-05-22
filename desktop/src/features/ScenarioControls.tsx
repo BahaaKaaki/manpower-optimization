@@ -196,10 +196,20 @@ function NumericTextInput({
         const parsed = Number(raw);
         if (!Number.isFinite(parsed)) return;
         let next = parsed;
-        if (min !== undefined && next < min) next = min;
-        if (max !== undefined && next > max) next = max;
+        let clamped = false;
+        if (min !== undefined && next < min) {
+          next = min;
+          clamped = true;
+        }
+        if (max !== undefined && next > max) {
+          next = max;
+          clamped = true;
+        }
         if (step !== undefined && step >= 1) next = Math.round(next);
-        setText(raw);
+        // When the typed value exceeded bounds, snap the display to the clamped
+        // value so the user can't see a number the engine isn't using. Trailing
+        // decimal points like "1." are still preserved (raw and next match).
+        setText(clamped ? String(next) : raw);
         onChange(next);
       }}
     />
@@ -530,8 +540,8 @@ export function ScenarioControls({
                 />
                 {!hasPerformanceColumn ? (
                   <p className="field-caption field-caption--warn">
-                    Performance scores missing &mdash; add a{" "}
-                    <code>Manpower Performance</code> column (1&ndash;5 per
+                    Performance scores missing - add a{" "}
+                    <code>Manpower Performance</code> column (1-5 per
                     employee) to the Inhouse sheet of the uploaded payroll to
                     enable this protection.
                   </p>
