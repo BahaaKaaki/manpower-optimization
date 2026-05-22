@@ -81,6 +81,11 @@ class ProcessedWorkbook:
     tenure_source_column: str | None
     unmapped_pairs: list[dict[str, Any]] = field(default_factory=list)
     workbook_pairs: list[dict[str, str]] = field(default_factory=list)
+    # Phase 3: True when the uploaded Inhouse sheet has the optional
+    # "Manpower Performance" column. When False the engine still runs (every
+    # row defaults to 3.0) but the UI disables the high-performer protection
+    # toggle and shows a "scores missing" caption.
+    has_performance_column: bool = False
 
 
 @dataclass
@@ -367,7 +372,8 @@ def process_workbook(
     # Missing or non-numeric values default to 3 (neutral). Carried through to
     # inhouse_cleaned so the LP layer can count per-family high performers at
     # the user's chosen threshold (Workforce Protection setting).
-    if "Manpower Performance" in inhouse_df.columns:
+    has_performance_column = "Manpower Performance" in inhouse_df.columns
+    if has_performance_column:
         inhouse_df["Manpower Performance"] = (
             pd.to_numeric(inhouse_df["Manpower Performance"], errors="coerce")
             .fillna(3.0)
@@ -667,6 +673,7 @@ def process_workbook(
         tenure_source_column=tenure_source_column,
         unmapped_pairs=unmapped_pairs,
         workbook_pairs=workbook_pairs,
+        has_performance_column=has_performance_column,
     )
 
 

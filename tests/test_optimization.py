@@ -2888,6 +2888,44 @@ class HighPerformerProtectionTests(unittest.TestCase):
         sl_row = result["data"][result["data"]["Job Family"] == "Skilled Labor"].iloc[0]
         self.assertEqual(int(sl_row["High Performer Non-Saudi Floor"]), 0)
 
+    def test_processed_workbook_exposes_has_performance_column_flag(self):
+        """The ProcessedWorkbook dataclass must surface whether the uploaded
+        payroll had the Manpower Performance column — the UI uses this to
+        disable the high-performer toggle when the column is missing."""
+        import io
+        from openpyxl import Workbook
+
+        from manpower_app.service import process_workbook
+
+        # Payload WITH the column.
+        contents_with = self._payroll_with_perf_scores([
+            ("Quarries", "Skilled Labor", "non-saudi", 4),
+        ])
+        self.assertTrue(process_workbook(io.BytesIO(contents_with)).has_performance_column)
+
+        # Payload WITHOUT the column (manually built so the header is absent).
+        wb = Workbook()
+        inh = wb.active
+        inh.title = "Inhouse"
+        inh.append([
+            "No", "Location", "Profession", "Nationality",
+            "Total Paid", "Total Unpaid",
+            "Basic", "Housing Paid", "Trans Paid", "Medical Paid", "EOS Paid", "Value O.T (SAR)",
+        ])
+        inh.append([100, "Quarries", "Skilled Labor", "non-saudi",
+                    5000, 0, 4000, 500, 200, 200, 100, 0])
+        sub = wb.create_sheet("Subcontractor")
+        sub.append([
+            "No", "Working in", "Profession", "Nationality", "Basic",
+            "Housing Paid", "Trans Paid", "Food", "Gosi", "Value O.T (SAR)",
+            "Government Fees", "E.O.S monthly", "Service Margin",
+        ])
+        sub.append([200, "Quarries", "Skilled Labor", "non-saudi",
+                    1500, 100, 50, 30, 0, 0, 0, 0, 80])
+        buf = io.BytesIO()
+        wb.save(buf)
+        self.assertFalse(process_workbook(io.BytesIO(buf.getvalue())).has_performance_column)
+
 
 if __name__ == "__main__":
     unittest.main()

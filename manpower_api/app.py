@@ -362,6 +362,7 @@ def _build_upload_response(processed: ProcessedWorkbook, filename: str | None) -
         "model_input_count": int(len(processed.optimization_df)),
         "unmapped_pairs": processed.unmapped_pairs,
         "workbook_pairs": processed.workbook_pairs,
+        "has_performance_column": bool(processed.has_performance_column),
         "families": families,
     }
 

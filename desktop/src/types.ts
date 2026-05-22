@@ -80,6 +80,7 @@ export type UploadResponse = {
   model_input?: Record<string, unknown>[];
   unmapped_pairs?: UnmappedPair[];
   workbook_pairs?: ActivityProfession[];
+  has_performance_column?: boolean;
   families?: FamilySummary[];
 };
 

@@ -3,12 +3,21 @@ import { type ReactNode, useState } from "react";
 import { SectionHeader } from "../components/SectionHeader";
 import type { FamilySummary, Settings } from "../types";
 
-function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleSwitch({
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
-    <label className="toggle-switch">
+    <label className={`toggle-switch${disabled ? " toggle-switch--disabled" : ""}`}>
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
         className="toggle-switch-input"
       />
@@ -28,19 +37,21 @@ function ToggleField({
   checked,
   onChange,
   hint,
+  disabled = false,
 }: {
   label: string;
   checked: boolean;
   onChange: (value: boolean) => void;
   hint?: string;
+  disabled?: boolean;
 }) {
   return (
-    <div className="control-row control-row--toggle">
+    <div className={`control-row control-row--toggle${disabled ? " control-row--disabled" : ""}`}>
       <div>
         <span className="control-row-label">{label}</span>
         {hint ? <span className="control-row-hint">{hint}</span> : null}
       </div>
-      <ToggleSwitch checked={checked} onChange={onChange} />
+      <ToggleSwitch checked={checked} onChange={onChange} disabled={disabled} />
     </div>
   );
 }
@@ -285,9 +296,18 @@ type ScenarioControlsProps = {
   settings: Settings;
   onUpdate: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
   families?: FamilySummary[];
+  // Phase 3: whether the uploaded payroll has the "Manpower Performance"
+  // column. When false the high-performer protection toggle is disabled and a
+  // helper caption explains how to enable it.
+  hasPerformanceColumn?: boolean;
 };
 
-export function ScenarioControls({ settings, onUpdate, families = [] }: ScenarioControlsProps) {
+export function ScenarioControls({
+  settings,
+  onUpdate,
+  families = [],
+  hasPerformanceColumn = false,
+}: ScenarioControlsProps) {
   // R23: all input accordions start closed so the user can scan the categories
   // before drilling in. Target mode still auto-expands the Target panel below.
   const [openSections, setOpenSections] = useState<Set<AccordionId>>(() => new Set());
@@ -494,7 +514,8 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                 />
                 <ToggleField
                   label="Protect high performers"
-                  checked={settings.protect_high_performers}
+                  checked={hasPerformanceColumn && settings.protect_high_performers}
+                  disabled={!hasPerformanceColumn}
                   onChange={(value) => onUpdate("protect_high_performers", value)}
                 />
                 <NumberField
@@ -503,10 +524,18 @@ export function ScenarioControls({ settings, onUpdate, families = [] }: Scenario
                   max={5}
                   step={1}
                   value={settings.high_performer_threshold}
-                  disabled={!settings.protect_high_performers}
+                  disabled={!hasPerformanceColumn || !settings.protect_high_performers}
                   suffix="and above"
                   onChange={(value) => onUpdate("high_performer_threshold", value)}
                 />
+                {!hasPerformanceColumn ? (
+                  <p className="field-caption field-caption--warn">
+                    Performance scores missing &mdash; add a{" "}
+                    <code>Manpower Performance</code> column (1&ndash;5 per
+                    employee) to the Inhouse sheet of the uploaded payroll to
+                    enable this protection.
+                  </p>
+                ) : null}
               </FieldStack>
             </AccordionSection>
           ) : null}
