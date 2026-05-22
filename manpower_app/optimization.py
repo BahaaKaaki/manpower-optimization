@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import pulp
 
 from manpower_app.rules import HQ_FIXED_INHOUSE_FAMILIES
@@ -13,6 +15,14 @@ from manpower_app.utils import normalize_lookup_text, safe_numeric
 OUTSOURCED_COLUMN = "Optimized Outsourced"
 IN_HOUSE_NON_SAUDI_COLUMN = "Optimized In-house Non Saudi"
 IN_HOUSE_SAUDI_COLUMN = "Optimized In-house Saudi"
+
+# Families with a hardcoded composition rule that ALWAYS overrides the LP's
+# cost-minimization. By name these are inherently 100% Saudi.
+ALL_SAUDI_FAMILIES = frozenset({"Idle Saudi Labor"})
+
+
+def _is_all_saudi_family(family) -> bool:
+    return str(family or "").strip() in ALL_SAUDI_FAMILIES
 
 
 def _outsourced_cost_column(data):
@@ -63,17 +73,28 @@ def _saudi_lower_bound(
 
     `protect_current_saudi_percent` (0.0–1.0) is the dynamic-protection field added in
     batch 2 — when supplied it takes precedence over the legacy boolean. The bool path
-    is preserved for Streamlit and back-compat callers."""
+    is preserved for Streamlit and back-compat callers.
+
+    The result is capped at the target Current Headcount so a Target-mode reduction
+    (e.g. target=0 for a family) is always feasible — protection is bounded by what
+    the target actually allows."""
+    total_headcount = int(safe_numeric(row.get("Current Headcount")))
     current_saudi = int(safe_numeric(row.get("Current Total In-house Saudi")))
     tenured_saudi = (
         int(safe_numeric(row.get("Tenured Saudi In-House"))) if tenure_constraint_active else 0
     )
     if protect_current_saudi_percent is not None:
         pct = max(0.0, min(1.0, safe_numeric(protect_current_saudi_percent)))
-        floor_from_current = int(round(current_saudi * pct))
+        # Round half-up so 50% of 5 = 3 (consultant's spec from screenshot 1's yellow
+        # row), not 2 (banker's rounding).
+        floor_from_current = math.ceil(current_saudi * pct - 1e-9)
     else:
         floor_from_current = 0 if can_reduce_current_saudi else current_saudi
-    return max(floor_from_current, tenured_saudi)
+    raw_lb = max(floor_from_current, tenured_saudi)
+    # Cap at total_headcount so e.g. target = 0 or target < current_saudi can still be
+    # feasible — the LP's headcount-equality constraint (O + NS + S == total) would
+    # otherwise become unsatisfiable.
+    return min(total_headcount, raw_lb)
 
 
 def _non_saudi_lower_bound(row, *, tenure_constraint_active):
@@ -144,20 +165,71 @@ def solve_optimization(
     non_saudi_vars: list[pulp.LpVariable] = []
     saudi_vars: list[pulp.LpVariable] = []
 
+    # "Strict zero Saudi" applies when the user explicitly drops Saudization to 0
+    # AND allows reducing current Saudis. Without this, the LP keeps existing
+    # Saudis whenever they happen to be cheaper — confusing to users who set
+    # 0% expecting "no Saudis". Tenure protection still wins (no eviction of
+    # tenured staff). Explicit dynamic protection (>0%) also takes precedence —
+    # the user can't simultaneously ask to keep 60% of Saudis AND drive to zero.
+    strict_zero_saudi = (
+        enforce_saudization
+        and safe_numeric(saudization_rate) <= 0
+        and can_reduce_current_saudi
+        and not tenure_constraint_active
+        and (
+            protect_current_saudi_percent is None
+            or safe_numeric(protect_current_saudi_percent) <= 0
+        )
+    )
+
     for i, row in data.iterrows():
         total_headcount = int(safe_numeric(row["Current Headcount"]))
-        max_outsourced = _max_outsourced_allowed(row)
-        saudi_lb = _saudi_lower_bound(
-            row,
-            can_reduce_current_saudi=can_reduce_current_saudi,
-            tenure_constraint_active=tenure_constraint_active,
-            protect_current_saudi_percent=protect_current_saudi_percent,
+        family = row.get("Job Family")
+        profession_rate = profession_saudization_rates.get(normalize_lookup_text(family))
+        has_profession_rate_above_zero = (
+            profession_rate is not None and safe_numeric(profession_rate) > 0
         )
-        non_saudi_lb = _non_saudi_lower_bound(row, tenure_constraint_active=tenure_constraint_active)
+
+        # Family-specific overrides applied BEFORE any LP variables are built so
+        # they win over every other constraint:
+        #   • Idle Saudi Labor → all-Saudi by definition.
+        if _is_all_saudi_family(family):
+            max_outsourced = 0
+            non_saudi_lb = 0
+            non_saudi_ub = 0
+            saudi_lb = total_headcount
+            saudi_ub = total_headcount
+        elif total_headcount == 0:
+            # Target mode allows the user to zero a family's headcount. The
+            # headcount-equality constraint then forces O + NS + S = 0, so every
+            # lower bound must collapse to 0 to keep the LP feasible. Saudi
+            # protection / tenure / minimum-inhouse are all bounded by total
+            # headcount, so this is consistent.
+            max_outsourced = 0
+            non_saudi_lb = 0
+            non_saudi_ub = 0
+            saudi_lb = 0
+            saudi_ub = 0
+        else:
+            max_outsourced = _max_outsourced_allowed(row)
+            saudi_lb = _saudi_lower_bound(
+                row,
+                can_reduce_current_saudi=can_reduce_current_saudi,
+                tenure_constraint_active=tenure_constraint_active,
+                protect_current_saudi_percent=protect_current_saudi_percent,
+            )
+            non_saudi_lb = _non_saudi_lower_bound(row, tenure_constraint_active=tenure_constraint_active)
+            non_saudi_ub = None
+            # Strict-zero override: force Saudi count to 0 when the user set
+            # Saudization = 0 with protection off, EXCEPT for families with an
+            # explicit profession-level rate > 0 (which still need Saudis to
+            # meet their per-family minimum).
+            family_strict_zero = strict_zero_saudi and not has_profession_rate_above_zero
+            saudi_ub = 0 if family_strict_zero else None
 
         outsourced = pulp.LpVariable(f"Outsourced_{i}", lowBound=0, upBound=max_outsourced, cat="Integer")
-        non_saudi = pulp.LpVariable(f"NonSaudi_{i}", lowBound=non_saudi_lb, cat="Integer")
-        saudi = pulp.LpVariable(f"Saudi_{i}", lowBound=saudi_lb, cat="Integer")
+        non_saudi = pulp.LpVariable(f"NonSaudi_{i}", lowBound=non_saudi_lb, upBound=non_saudi_ub, cat="Integer")
+        saudi = pulp.LpVariable(f"Saudi_{i}", lowBound=saudi_lb, upBound=saudi_ub, cat="Integer")
 
         outsourced_vars.append(outsourced)
         non_saudi_vars.append(non_saudi)

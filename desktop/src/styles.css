@@ -2544,7 +2544,7 @@ button, input, select {
 .family-mix-bar-segment span {
   display: block;
   max-width: 100%;
-  padding: 0 6px;
+  padding: 0 3px;
   color: #ffffff;
   font-size: 10px;
   font-weight: 900;
@@ -2555,6 +2555,28 @@ button, input, select {
   overflow: hidden;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.34);
   font-variant-numeric: tabular-nums;
+}
+
+/* Section-level legend strip beneath the family list */
+.family-mix-legend-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+
+.family-mix-legend-strip-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 /* Stack: bar on top, dot-chip row underneath. Replaces the inline IS/IN/O codes

@@ -12,6 +12,7 @@ from manpower_app.costs import (
     calculate_outsource_employee_cost,
     cap_outsourced_at_inhouse,
 )
+from manpower_app.costs import bump_inhouse_non_saudi_above_outsourced
 from manpower_app.export import build_results_workbook
 from manpower_app.family_specs import (
     CustomFamilySpec,
@@ -100,6 +101,10 @@ class OptimizationSettings:
     engineer_saudization_rate: float = 0.25
     sales_saudization_rate: float = 0.60
     management_saudization_rate: float = 0.35
+    # Executive Management has its own input separate from the broader Management
+    # family per consultant feedback — the two were previously controlled by a single
+    # rate which led to one input affecting both.
+    executive_management_saudization_rate: float = 0.35
     # Soft-input overrides for normally-hardcoded assumptions. Defaults preserve historical behavior.
     saudi_cost_premium: float = 1.10
     outsource_cost_discount: float | None = None
@@ -847,6 +852,22 @@ def prepare_model_data(
             axis=1,
         )
 
+    # SYMMETRIC override (consultant's Scenario 1 feedback). Even after the cap above,
+    # if outsourced and in-house non-Saudi costs are equal the LP's tie-break keeps
+    # everyone in-house and the outsourceability rule is effectively ignored. Bump
+    # in-house non-Saudi cost SLIGHTLY above outsourced for any Fully/Partially
+    # outsourceable family so the LP strictly prefers to outsource up to the family's
+    # ratio cap. Saudi in-house cost is intentionally left alone so saudization
+    # compliance still works.
+    data["Fully Loaded Cost per In-house Non-Saudi Employee"] = data.apply(
+        lambda row: bump_inhouse_non_saudi_above_outsourced(
+            row["Fully Loaded Cost per In-house Non-Saudi Employee"],
+            row["Avg Cost Outsourced"],
+            row.get("Outsourceability Type"),
+        ),
+        axis=1,
+    )
+
     # Negotiated cost per outsourced FTE: BASE + user-supplied insurance + service margin.
     # When the workbook lacks per-family base data (the "Excluding" column is NA for that
     # family — typically when no subcontractor rows exist for it), fall back to the family's
@@ -880,7 +901,7 @@ def prepare_model_data(
     profession_saudization_rates = {
         normalize_lookup_text("Engineer"): settings.engineer_saudization_rate,
         normalize_lookup_text("Representative"): settings.sales_saudization_rate,
-        normalize_lookup_text("Executive Management"): settings.management_saudization_rate,
+        normalize_lookup_text("Executive Management"): settings.executive_management_saudization_rate,
         normalize_lookup_text("Management"): settings.management_saudization_rate,
     }
     data, optimized_payroll, optimization_status = solve_optimization(
@@ -1011,7 +1032,7 @@ def build_optimization_audit(
     profession_rates = {
         normalize_lookup_text("Engineer"): settings.engineer_saudization_rate,
         normalize_lookup_text("Representative"): settings.sales_saudization_rate,
-        normalize_lookup_text("Executive Management"): settings.management_saudization_rate,
+        normalize_lookup_text("Executive Management"): settings.executive_management_saudization_rate,
         normalize_lookup_text("Management"): settings.management_saudization_rate,
     }
 
