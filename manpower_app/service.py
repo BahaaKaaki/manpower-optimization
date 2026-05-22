@@ -81,6 +81,11 @@ class ProcessedWorkbook:
     tenure_source_column: str | None
     unmapped_pairs: list[dict[str, Any]] = field(default_factory=list)
     workbook_pairs: list[dict[str, str]] = field(default_factory=list)
+    # Phase 3: True when the uploaded Inhouse sheet has the optional
+    # "Manpower Performance" column. When False the engine still runs (every
+    # row defaults to 3.0) but the UI disables the high-performer protection
+    # toggle and shows a "scores missing" caption.
+    has_performance_column: bool = False
 
 
 @dataclass
@@ -105,6 +110,12 @@ class OptimizationSettings:
     # family per consultant feedback — the two were previously controlled by a single
     # rate which led to one input affecting both.
     executive_management_saudization_rate: float = 0.35
+    # Phase 3: protect high-performing in-house employees from being outsourced.
+    # When ON (Current mode only), each in-house employee with
+    # `Manpower Performance >= high_performer_threshold` is treated as a per-family
+    # in-house floor that the LP must respect (separately for Saudis and Non-Saudis).
+    protect_high_performers: bool = False
+    high_performer_threshold: float = 4.0
     # Soft-input overrides for normally-hardcoded assumptions. Defaults preserve historical behavior.
     saudi_cost_premium: float = 1.10
     outsource_cost_discount: float | None = None
@@ -357,6 +368,19 @@ def process_workbook(
     inhouse_df["Is_Saudi"] = (
         inhouse_df["Nationality"].astype(str).str.strip().str.upper() == "SAUDI"
     ).astype(int)
+    # Phase 3: read the optional "Manpower Performance" score per employee (1-5).
+    # Missing or non-numeric values default to 3 (neutral). Carried through to
+    # inhouse_cleaned so the LP layer can count per-family high performers at
+    # the user's chosen threshold (Workforce Protection setting).
+    has_performance_column = "Manpower Performance" in inhouse_df.columns
+    if has_performance_column:
+        inhouse_df["Manpower Performance"] = (
+            pd.to_numeric(inhouse_df["Manpower Performance"], errors="coerce")
+            .fillna(3.0)
+            .clip(lower=1.0, upper=5.0)
+        )
+    else:
+        inhouse_df["Manpower Performance"] = 3.0
     inhouse_df["Cost_Per_Employee"] = inhouse_df["Total Paid"] + inhouse_df["Total Unpaid"]
     inhouse_df["Fully_Loaded_Inhouse_Cost_Per_Employee"] = inhouse_df.apply(
         calculate_inhouse_fully_loaded_employee_cost,
@@ -649,6 +673,7 @@ def process_workbook(
         tenure_source_column=tenure_source_column,
         unmapped_pairs=unmapped_pairs,
         workbook_pairs=workbook_pairs,
+        has_performance_column=has_performance_column,
     )
 
 
@@ -904,6 +929,43 @@ def prepare_model_data(
         normalize_lookup_text("Executive Management"): settings.executive_management_saudization_rate,
         normalize_lookup_text("Management"): settings.management_saudization_rate,
     }
+
+    # Phase 3: high-performer protection. Count, per family, how many in-house
+    # employees have Manpower Performance >= threshold, split by Saudi / Non-Saudi.
+    # The LP uses these as per-classification lower bounds so the LP cannot
+    # outsource a high performer or reclassify them. Current mode only.
+    data["High Performer Saudi Floor"] = 0
+    data["High Performer Non-Saudi Floor"] = 0
+    if (
+        settings.protect_high_performers
+        and settings.optimization_mode != "target"
+        and not processed.inhouse_cleaned.empty
+        and "Manpower Performance" in processed.inhouse_cleaned.columns
+    ):
+        threshold = float(settings.high_performer_threshold)
+        protected = processed.inhouse_cleaned[
+            processed.inhouse_cleaned["Manpower Performance"] >= threshold
+        ]
+        if not protected.empty:
+            saudi_counts = (
+                protected[protected["Is_Saudi"] == 1]
+                .groupby("Job_Family")
+                .size()
+                .to_dict()
+            )
+            non_saudi_counts = (
+                protected[protected["Is_Saudi"] == 0]
+                .groupby("Job_Family")
+                .size()
+                .to_dict()
+            )
+            data["High Performer Saudi Floor"] = data["Job Family"].map(
+                lambda f: int(saudi_counts.get(f, 0))
+            )
+            data["High Performer Non-Saudi Floor"] = data["Job Family"].map(
+                lambda f: int(non_saudi_counts.get(f, 0))
+            )
+
     data, optimized_payroll, optimization_status = solve_optimization(
         data,
         enforce_saudization=settings.enforce_saudization,

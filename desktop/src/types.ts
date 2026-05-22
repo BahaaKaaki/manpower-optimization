@@ -53,6 +53,8 @@ export type Settings = {
   sales_saudization_rate: number;
   management_saudization_rate: number;
   executive_management_saudization_rate: number;
+  protect_high_performers: boolean;
+  high_performer_threshold: number;
   saudi_cost_premium: number;
   outsource_cost_discount: number | null;
   max_ratio_overrides: Record<string, string>;
@@ -78,6 +80,7 @@ export type UploadResponse = {
   model_input?: Record<string, unknown>[];
   unmapped_pairs?: UnmappedPair[];
   workbook_pairs?: ActivityProfession[];
+  has_performance_column?: boolean;
   families?: FamilySummary[];
 };
 

@@ -219,6 +219,19 @@ def solve_optimization(
                 protect_current_saudi_percent=protect_current_saudi_percent,
             )
             non_saudi_lb = _non_saudi_lower_bound(row, tenure_constraint_active=tenure_constraint_active)
+            # Phase 3: high-performer in-house floors. Per-classification lower
+            # bounds set in prepare_model_data — non-zero only when the user
+            # turned protection on AND we're in Current mode. Each one bumps
+            # the Saudi / Non-Saudi LB up so the high performers cannot be
+            # outsourced or reclassified.
+            hp_saudi_floor = int(safe_numeric(row.get("High Performer Saudi Floor", 0)))
+            hp_non_saudi_floor = int(safe_numeric(row.get("High Performer Non-Saudi Floor", 0)))
+            saudi_lb = max(saudi_lb, hp_saudi_floor)
+            non_saudi_lb = max(non_saudi_lb, hp_non_saudi_floor)
+            # Floors mustn't exceed total headcount (sanity guard for malformed
+            # input — would otherwise produce an infeasible LP).
+            saudi_lb = min(total_headcount, saudi_lb)
+            non_saudi_lb = min(total_headcount, non_saudi_lb)
             non_saudi_ub = None
             # Strict-zero override: force Saudi count to 0 when the user set
             # Saudization = 0 with protection off, EXCEPT for families with an
@@ -226,6 +239,11 @@ def solve_optimization(
             # meet their per-family minimum).
             family_strict_zero = strict_zero_saudi and not has_profession_rate_above_zero
             saudi_ub = 0 if family_strict_zero else None
+            # When strict-zero would conflict with a high-performer Saudi floor,
+            # the high-performer protection wins (the user explicitly opted to
+            # protect those individuals).
+            if saudi_ub == 0 and saudi_lb > 0:
+                saudi_ub = None
 
         outsourced = pulp.LpVariable(f"Outsourced_{i}", lowBound=0, upBound=max_outsourced, cat="Integer")
         non_saudi = pulp.LpVariable(f"NonSaudi_{i}", lowBound=non_saudi_lb, upBound=non_saudi_ub, cat="Integer")

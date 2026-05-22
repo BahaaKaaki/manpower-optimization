@@ -151,6 +151,8 @@ class OptimizationSettingsRequest(BaseModel):
     sales_saudization_rate: float = Field(default=0.60, ge=0, le=1)
     management_saudization_rate: float = Field(default=0.35, ge=0, le=1)
     executive_management_saudization_rate: float = Field(default=0.35, ge=0, le=1)
+    protect_high_performers: bool = False
+    high_performer_threshold: float = Field(default=4.0, ge=1.0, le=5.0)
     saudi_cost_premium: float = Field(default=1.10, ge=1.0, le=3.0)
     outsource_cost_discount: float | None = Field(default=None, ge=0, le=1)
     max_ratio_overrides: dict[str, str] = Field(default_factory=dict)
@@ -360,6 +362,7 @@ def _build_upload_response(processed: ProcessedWorkbook, filename: str | None) -
         "model_input_count": int(len(processed.optimization_df)),
         "unmapped_pairs": processed.unmapped_pairs,
         "workbook_pairs": processed.workbook_pairs,
+        "has_performance_column": bool(processed.has_performance_column),
         "families": families,
     }
 

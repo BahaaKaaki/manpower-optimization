@@ -81,6 +81,8 @@ const defaultSettings: Settings = {
   sales_saudization_rate: 0.6,
   management_saudization_rate: 0.35,
   executive_management_saudization_rate: 0.35,
+  protect_high_performers: false,
+  high_performer_threshold: 4.0,
   saudi_cost_premium: 1.1,
   outsource_cost_discount: null,
   max_ratio_overrides: {},
@@ -336,6 +338,13 @@ export default function App() {
   function consumeUploadResponse(payload: UploadResponse) {
     setUploadInfo(payload);
     setUnmappedPairs(payload.unmapped_pairs ?? []);
+    // Phase 3: if the uploaded payroll has no Manpower Performance column,
+    // force the high-performer protection toggle off so the UI state matches
+    // what the engine can actually enforce (otherwise the toggle would stay
+    // "on" visually but greyed out, which is confusing).
+    if (payload.has_performance_column === false && settings.protect_high_performers) {
+      updateSetting("protect_high_performers", false);
+    }
   }
 
   async function uploadWorkbook(file: File) {
@@ -539,6 +548,7 @@ export default function App() {
               settings={settings}
               onUpdate={updateSetting}
               families={uploadInfo.families ?? []}
+              hasPerformanceColumn={uploadInfo.has_performance_column ?? false}
             />
           ) : null}
 
